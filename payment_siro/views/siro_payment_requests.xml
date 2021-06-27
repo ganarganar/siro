@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+	<record id="siro_payment_requests_tree" model="ir.ui.view">
+		<field name="name">siro_payment_requests.tree</field>
+		<field name="model">siro.payment.requests</field>
+		<field name="arch" type="xml">
+			<tree string="Siro">
+				<field name="name"/>
+				<field name="state"/>
+			</tree>
+		</field>
+	</record>
+	<record id="siro_payment_requests_form" model="ir.ui.view">
+		<field name="name">siro_payment_requests.form</field>
+		<field name="model">siro.payment.requests</field>
+		<field name="arch" type="xml">
+			<form string="Siro">
+				<header>
+					<button name="create_register" states="draft" string="Create" type="object"/>
+					
+					<button name="send_to_process" states="draft" string="Send" type="object"/>
+
+					<field name="state" widget="statusbar"/>
+				</header>
+				<sheet>
+					<group>
+						<field name="name"/>
+						<field name="acquirer_id"/>
+						<field name="transaction_ids"/>
+					</group>
+						<div style="margin:auto; max-width:80%; overflow:scroll;" ><field name="data"/></div>
+				</sheet>
+			</form>
+		</field>
+	</record>
+	<record id="action_siro_payment_requests" model="ir.actions.act_window">
+		<field name="name">siro requests</field>
+		<field name="res_model">siro.payment.requests</field>
+		<field name="view_mode">tree,form</field>
+	</record>
+	<menuitem action="action_siro_payment_requests" id="siro_payment_requests_menu" parent="account.menu_finance_receivables"/>
+</odoo>

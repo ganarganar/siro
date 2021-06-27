@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="payment_acquirer_siro" model="payment.acquirer">
+            <field name="name">Siro</field>
+            <field name="image" type="base64" file="payment_siro/static/src/img/siro_icon.png"/>
+            <field name="provider">siro</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="view_template_id" ref="siro_form"/>
+            <field name="environment">test</field>
+            <field name="pre_msg"><![CDATA[
+<p>Transfer information will be provided after choosing the payment aquirer.</p>]]>
+            </field>
+        </record>
+        
+        
+    </data>
+</odoo>

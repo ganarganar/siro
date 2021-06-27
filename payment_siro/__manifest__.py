@@ -13,14 +13,16 @@
     'website': "http://ganargan.ar",
 
     'category': 'Payment',
-    'version': '13.0.0.0.1',
+    'version': '12.0.0.0.1',
 
-    'depends': ['payment'],
+    'depends': ['payment', 'bit_late_payment_penalty'],
 
     'data': [
         # 'security/ir.model.access.csv',
-        'views/views.xml',
-        'views/templates.xml',
+        'views/siro_form.xml',
+        'views/payment_views.xml',
+        'views/siro_payment_requests.xml',
+        'data/payment_acquirer_data.xml',
     ],
 
 }

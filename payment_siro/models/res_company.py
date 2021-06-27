@@ -9,7 +9,7 @@ class ResCompany(models.Model):
         string='Roela Identification',
     )
 
-    days_2_expiration = fields.Integer(
+    """days_2_expiration = fields.Integer(
         string='days to second expiration',
     )
 
@@ -24,4 +24,4 @@ class ResCompany(models.Model):
     coefficient_3_expiration = fields.Float(
         string='coefficient for third expiration',
         default=1.0
-    )
+    )"""
