@@ -6,6 +6,12 @@
 		<field name="arch" type="xml">
 			<tree string="Siro">
 				<field name="name"/>
+				<field name="reg_ok"/>
+				<field name="reg_ko"/>
+				<field name="reg_pros"/>
+				<field name="first_expiration"/>
+				<field name="second_expiration"/>
+				<field name="thrid_expiration"/>
 				<field name="state"/>
 			</tree>
 		</field>
@@ -17,9 +23,8 @@
 			<form string="Siro">
 				<header>
 					<button name="create_register" states="draft" string="Create" type="object"/>
-					
 					<button name="send_to_process" states="draft" string="Send" type="object"/>
-
+					<button name="check_process" states="send,pending" string="Check" type="object"/>
 					<field name="state" widget="statusbar"/>
 				</header>
 				<sheet>
@@ -28,8 +33,33 @@
 						<field name="acquirer_id"/>
 						<field name="transaction_ids"/>
 					</group>
-						<div style="margin:auto; max-width:80%; overflow:scroll;" ><field name="data"/></div>
+					<notebook>
+						<page id="info" string="info">
+							<group>
+								<field name="reg_ok"/>
+								<field name="reg_ko"/>
+								<field name="reg_pros"/>
+								<field name="first_expiration"/>
+								<field name="second_expiration"/>
+								<field name="thrid_expiration"/>
+							</group>
+						</page>
+						<page id="errors" string="errors">
+							<group>
+								<field name="error_text"/>
+							</group>
+						</page>
+						<page id="data" string="data">
+							<div style="margin:auto; max-width:80%; overflow:scroll;">
+								<field name="data"/>
+							</div>
+						</page>
+					</notebook>
 				</sheet>
+				<div class="oe_chatter">
+					<field groups="base.group_user" name="message_follower_ids" widget="mail_followers"/>
+					<field name="message_ids" widget="mail_thread"/>
+				</div>
 			</form>
 		</field>
 	</record>

@@ -32,7 +32,7 @@ class PaymentAcquirer(models.Model):
     siro_token_expires = fields.Datetime(
         string='Siro token expires',
     )
-    roela_code = fields.Integer(
+    roela_code = fields.Char(
         string='Roela Identification',
     )
 
@@ -57,7 +57,11 @@ class PaymentAcquirer(models.Model):
 
     def siro_get_token(self):
         self.ensure_one()
-        if self.siro_token and self.siro_token_expires < datetime.now():
+
+        # if self.siro_token and
+        # fields.Datetime.from_string(self.siro_token_expires) <
+        # datetime.now():
+        if False:
             return self.siro_token
         else:
             api_url = self.get_auth_url()
@@ -83,7 +87,6 @@ class PaymentAcquirer(models.Model):
             ('siro_requests_id', '=', False),
             ('acquirer_id', '=', self.id),
         ])
-        _logger.info(transaction_ids)
         if len(transaction_ids):
             requests = self.env['siro.payment.requests'].create(
                 {
@@ -92,14 +95,16 @@ class PaymentAcquirer(models.Model):
                 }
             )
             requests.create_register()
-            #self.env.cr.commit()
+            # self.env.cr.commit()
 
-            #requests.send_to_process()
+            # requests.send_to_process()
 
 
 class SiroPaymentRequest(models.Model):
     _name = 'siro.payment.requests'
     _description = 'SIRO payment requests'
+
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(
         string='Trasaction number',
@@ -124,11 +129,37 @@ class SiroPaymentRequest(models.Model):
     state = fields.Selection(
         [('draft', 'draft'),
          ('send', 'send'),
+         ('pending', 'pending'),
          ('process', 'process'),
          ('done', 'done'),
          ('cancel', 'cancel'), ],
         string='State',
         default='draft'
+    )
+
+    reg_ok = fields.Integer(
+        string='ok',
+    )
+    reg_ko = fields.Integer(
+        string='ko',
+    )
+    reg_pros = fields.Integer(
+        string='pros',
+    )
+    error_text = fields.Char(
+        string='error text',
+    )
+    first_expiration = fields.Integer(
+        string='first expiration',
+    )
+    second_expiration = fields.Integer(
+        string='second expiration',
+    )
+    thrid_expiration = fields.Integer(
+        string='thrid expiration',
+    )
+    reg_err = fields.Text(
+        string='reg_err',
     )
 
     def send_to_process(self):
@@ -138,7 +169,7 @@ class SiroPaymentRequest(models.Model):
 
         api_url = self.acquirer_id.get_api_siro_url() + "/siro/Pagos"
         request_data = {
-            "base_pagos": "string",
+            "base_pagos": self.data,
             "confirmar_automaticamente": True
         }
         headers = {"Authorization": "Bearer %s" % access_token}
@@ -147,8 +178,49 @@ class SiroPaymentRequest(models.Model):
             stringProcess = response.json()
             self.state = 'send'
             self.name = stringProcess['nro_transaccion']
+            self.message_post(body=_(
+                'requests Send. Transactions number %s ' % stringProcess['nro_transaccion']))
+
         else:
-            print(response.content)
+            self.message_post(body=_('Requests Error.  %r ' %
+                                     response.content))
+            _logger.info(response.content)
+
+    def check_process(self):
+        for req in self:
+            access_token = self.acquirer_id.siro_get_token()
+
+            api_url = self.acquirer_id.get_api_siro_url() + "/siro/Pagos/%s?obtener_informacion_base=false" % req.name
+
+            headers = {"Authorization": "Bearer %s" % access_token}
+            response = requests.get(
+                api_url, headers=headers)
+            if response.status_code == 200:
+                res = response.json()
+
+                data = {
+                    'reg_ok': res['cantidad_registros_correctos'],
+                    'reg_ko': res['cantidad_registros_erroneos'],
+                    'reg_pros': res['cantidad_registros_procesados'],
+                    'error_text': res['error_descripcion'],
+                    'first_expiration': res['total_primer_vencimiento'],
+                    'second_expiration': res['total_segundo_vencimiento'],
+                    'thrid_expiration': res['total_tercer_vencimiento'],
+
+                }
+                if res['estado'] == 'PENDIENTE':
+                    data['state'] = 'pending'
+                req.write(data)
+                ret_text = ''
+                for t in res.keys():
+                    ret_text += "%s: %s <br/>\n" % (t, res[t])
+                self.message_post(body=_(
+                    'requests check. Transaction number %s <br/>\n %s' % (req.name, ret_text)))
+
+            else:
+                self.message_post(
+                    body=_('Requests Error.  %r ' % response.content))
+                _logger.info(response.content)
 
     def create_register(self):
         self.ensure_one()
@@ -170,24 +242,28 @@ class SiroPaymentRequest(models.Model):
             count_items += 1
 
             expiration_days = 20
-            date_expiration = fields.Date.from_string(transaction.invoice_id.date_due)
+            date_expiration = fields.Date.from_string(
+                transaction.invoice_id.date_due)
             second_expiration = int(
                 transaction.invoice_id.amount_total_with_penalty * 10)
             third_expiration = second_expiration
-            date_second_expiration = date_expiration + timedelta(days=expiration_days)
+            date_second_expiration = date_expiration + \
+                timedelta(days=expiration_days)
             date_third_expiration = date_second_expiration
             company_id = self.env.user.company_id
 
             plot = [
                 ('Reg code', 'fix', '5'),
                 ('Reference', 'plot', [
-                    ('partner id', '{:0>9d}', int(transaction.partner_id.main_id_number)),
+                    ('partner id', '{:0>9d}', int(
+                        transaction.partner_id.main_id_number)),
                     ('roela_code', '{:0>10d}',
-                     transaction.acquirer_id.roela_code),
+                     int(transaction.acquirer_id.roela_code)),
                 ]
                 ),
                 ('Factura', 'plot', [
-                    ('Invoice', '{:0>15d}', 4458754),#transaction.invoice_id.name),
+                    # transaction.invoice_id.name),
+                    ('Invoice', '{:0>15d}', 4458754),
                     ('Concept', 'fix', '0'),
                     ('mes Factura', 'DDMM', transaction.invoice_id.date),
                 ]
@@ -201,15 +277,18 @@ class SiroPaymentRequest(models.Model):
                 ('monto ter vencimiento', '{:0>11d}', third_expiration),
                 ('filler', '{:0>19d}', 0),
                 ('Reference', 'plot', [
-                    ('partner id', '{:0>9d}', int(transaction.partner_id.main_id_number)),
+                    ('partner id', '{:0>9d}', int(
+                        transaction.partner_id.main_id_number)),
                     ('roela_code', '{:0>10d}',
-                     transaction.acquirer_id.roela_code),
+                     int(transaction.acquirer_id.roela_code)),
                 ]
                 ),
 
                 ('tiket ', 'plot', [
-                    ('ente', '{: >15}', re.sub('[\W_]+', '', company_id.name)[:15]),
-                    ('concepto', '{: >25}',  re.sub('[\W_]+', '', transaction.payment_token_id.name)[:25])
+                    ('ente', '{: >15}', re.sub(
+                        '[\W_]+', '', company_id.name)[:15]),
+                    ('concepto', '{: >25}',  re.sub(
+                        '[\W_]+', '', transaction.payment_token_id.name)[:25])
                 ]),
                 ('pantalla', '{: >15}', re.sub(
                     '[\W_]+', '', company_id.name)[:15]),
@@ -219,14 +298,16 @@ class SiroPaymentRequest(models.Model):
                         [
                             ('emp', 'fix', '0447'),
                             ('concepto', 'fix', '3'),
-                            ('partner id', '{:0>9d}', int(transaction.partner_id.main_id_number)),
+                            ('partner id', '{:0>9d}', int(
+                                transaction.partner_id.main_id_number)),
                             ('vencimiento', 'AAAAMMDD', date_expiration),
                             ('monto', '{:0>7d}', int(transaction.amount * 10)),
                             ('dias 2', '{:0>2d}', expiration_days),
                             ('monto 2', '{:0>7d}', second_expiration),
                             ('dias 3', '{:0>2d}', expiration_days),
                             ('monto 3', '{:0>7d}', third_expiration),
-                            ('roela_code', '{:0>10d}', transaction.acquirer_id.roela_code),
+                            ('roela_code', '{:0>10d}', int(
+                                transaction.acquirer_id.roela_code)),
                         ]
                      )
                 ]),
@@ -248,6 +329,7 @@ class SiroPaymentRequest(models.Model):
 
         ])
         self.data = res
+        self.message_post(body=_('requests Prepared'))
         return res
 
     def parce_text_line(self, plot):
