@@ -1,5 +1,5 @@
 
-from odoo import fields, models, _
+from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import datetime,  timedelta
 import requests
@@ -35,6 +35,41 @@ class PaymentAcquirer(models.Model):
     roela_code = fields.Char(
         string='Roela Identification',
     )
+    roela_date_from = fields.Date(
+        string='roela date from',
+        default="2020-12-01"
+    )
+    roela_date_to = fields.Date(
+        string='roela date to',
+        default="2020-12-31"
+    )
+
+    def list_process(self, date_from=False, date_to=False):
+
+        date_from = '%sT00:00:00.000Z' % self.roela_date_from
+        date_to = '%sT23:59:59.999Z' % self.roela_date_to
+
+        access_token = self.siro_get_token()
+        api_url = self.get_api_siro_url() + "/siro/Listados/Proceso"
+        headers = {"Authorization": "Bearer %s" % access_token}
+        request_data = {
+            "fecha_desde": date_from,
+            "fecha_hasta": date_to,
+            "cuit_administrador": "%s" % self.company_id.main_id_number.replace('-', ''),
+            "nro_empresa": self.roela_code
+        }
+        response = requests.post(api_url, headers=headers, json=request_data)
+
+        if response.status_code == 200:
+            res = response.json()
+            for line in res:
+                _logger.info(line)
+        else:
+            raise UserError(_(response.content))
+
+    @api.model
+    def parce_render_line(self, line):
+        pass
 
     def get_auth_url(self):
         self.ensure_one()
@@ -58,10 +93,7 @@ class PaymentAcquirer(models.Model):
     def siro_get_token(self):
         self.ensure_one()
 
-        # if self.siro_token and
-        # fields.Datetime.from_string(self.siro_token_expires) <
-        # datetime.now():
-        if False:
+        if self.siro_token and fields.Datetime.from_string(self.siro_token_expires) > datetime.now():
             return self.siro_token
         else:
             api_url = self.get_auth_url()
@@ -190,7 +222,8 @@ class SiroPaymentRequest(models.Model):
         for req in self:
             access_token = self.acquirer_id.siro_get_token()
 
-            api_url = self.acquirer_id.get_api_siro_url() + "/siro/Pagos/%s?obtener_informacion_base=false" % req.name
+            api_url = self.acquirer_id.get_api_siro_url(
+            ) + "/siro/Pagos/%s?obtener_informacion_base=false" % req.name
 
             headers = {"Authorization": "Bearer %s" % access_token}
             response = requests.get(
@@ -314,7 +347,25 @@ class SiroPaymentRequest(models.Model):
                 ('filler', '{:0>19d}', 0),
             ]
             res += self.parce_text_line(plot)
-
+            barcode = [('codigo barra', 'get_vd', [
+                    ('primer dv', 'get_vd',
+                        [
+                            ('emp', 'fix', '0447'),
+                            ('concepto', 'fix', '3'),
+                            ('partner id', '{:0>9d}', int(
+                                transaction.partner_id.main_id_number)),
+                            ('vencimiento', 'AAAAMMDD', date_expiration),
+                            ('monto', '{:0>7d}', int(transaction.amount * 10)),
+                            ('dias 2', '{:0>2d}', expiration_days),
+                            ('monto 2', '{:0>7d}', second_expiration),
+                            ('dias 3', '{:0>2d}', expiration_days),
+                            ('monto 3', '{:0>7d}', third_expiration),
+                            ('roela_code', '{:0>10d}', int(
+                                transaction.acquirer_id.roela_code)),
+                        ]
+                     )
+                ])]
+            transaction.siro_barcode = self.parce_text_line(barcode)
             res += '\n'
 
         res += self.parce_text_line([
@@ -412,6 +463,12 @@ class paymentTransaction(models.Model):
         'account.invoice',
         string='Invoice',
         domain=[('type', '=', 'out_invoice')]
+    )
+    siro_barcode = fields.Char(
+        string='SIRO barcode',
+    )
+    siro_channel = fields.Char(
+        string='SIRO channel',
     )
 
 
