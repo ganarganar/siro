@@ -44,6 +44,13 @@ class PaymentAcquirer(models.Model):
         default="2020-12-31"
     )
 
+    def _get_feature_support(self):
+        res = super()._get_feature_support()
+        res['authorize'].append('siro')
+        res['tokenize'].append('siro')
+        return res
+
+
     def list_process(self, date_from=False, date_to=False):
 
         date_from = '%sT00:00:00.000Z' % self.roela_date_from
@@ -61,11 +68,71 @@ class PaymentAcquirer(models.Model):
         response = requests.post(api_url, headers=headers, json=request_data)
 
         if response.status_code == 200:
+            line_def = self.get_alternate_format_file()
             res = response.json()
             for line in res:
-                _logger.info(line)
+                line_info = self.parce_text_line(line, line_def)
+                transaction = self.env['payment.transaction'].search([
+                    ('state', 'not in', ['done', 'cancel']),
+                    ('acquirer_id.provider', '=', 'siro'),
+                    ('siro_barcode', '=', line_info['barcode'])
+
+                ])
+                if transaction:
+                    _logger.info('payment OK')
+                    transaction.amount = line_info['amount']
+                    transaction._set_transaction_done()
+                    transaction._reconcile_after_transaction_done()
+                else:
+
+                    _logger.info('payment ko')
         else:
-            raise UserError(_(response.content))
+            raise UserError(response.content)
+
+    @api.model
+    def get_alternate_format_file(self):
+        return [
+                    ('payment_date', 'AAAAMMDD', 8),
+                    ('acreditation_date', 'AAAAMMDD', 8),
+                    ('first_expiration_date', 'AAAAMMDD', 8),
+                    ('amount', 'int_to_float', 7, 10),
+                    ('userid', 'char', 8),
+                    ('concept', 'char', 1),
+                    ('barcode', 'char', 56),
+                    ('chanel', 'char', 3),
+                ]
+
+    @api.model
+    def get_siro_extended_format_file(self):
+        return [
+                    ('payment_date', 'AAAAMMDD', 8),
+                    ('acreditation_date', 'AAAAMMDD', 8),
+                    ('first_expiration_date', 'AAAAMMDD', 8),
+                    ('amount', 'int_to_float', 7, 10),
+                    ('userid', 'char', 8),
+                    ('concept', 'char', 1),
+                    ('barcode', 'char', 56),
+                    ('chanel', 'char', 3),
+                ]
+
+    @api.model
+    def parce_text_line(self, line, line_def):
+        cursor = 0
+        res = {}
+        for item in line_def:
+            text = line[cursor:cursor + item[2]]
+            if item[1] == 'AAAAMMDD':
+                res[item[0]] = fields.Date.to_string(
+                    datetime.strptime(text, '%Y%m%d'))
+            elif item[1] == 'int_to_float':
+                res[item[0]] = int(text) / item[3]
+            elif item[1] == 'int':
+                res[item[0]] = int(text)
+            else:
+                res[item[0]] = text
+
+            cursor += item[2]
+        return res
 
     @api.model
     def parce_render_line(self, line):
@@ -243,6 +310,11 @@ class SiroPaymentRequest(models.Model):
                 }
                 if res['estado'] == 'PENDIENTE':
                     data['state'] = 'pending'
+                    req.transaction_ids._set_transaction_pending()
+                if res['estado'] == 'AUTORIZADO':
+                    data['state'] = 'autorized'
+                    req.transaction_ids._set_transaction_authorized()
+
                 req.write(data)
                 ret_text = ''
                 for t in res.keys():
@@ -274,11 +346,13 @@ class SiroPaymentRequest(models.Model):
             total += int(transaction.amount * 10)
             count_items += 1
 
+            # La Factura es obligatoria como id
+            # la primer factura es que vale
+            invoice_id = transaction.invoice_ids[0]
+
             expiration_days = 20
-            date_expiration = fields.Date.from_string(
-                transaction.invoice_id.date_due)
-            second_expiration = int(
-                transaction.invoice_id.amount_total_with_penalty * 10)
+            date_expiration = fields.Date.from_string(invoice_id.date_due)
+            second_expiration = int(invoice_id.amount_total_with_penalty * 10)
             third_expiration = second_expiration
             date_second_expiration = date_expiration + \
                 timedelta(days=expiration_days)
@@ -289,7 +363,7 @@ class SiroPaymentRequest(models.Model):
                 ('Reg code', 'fix', '5'),
                 ('Reference', 'plot', [
                     ('partner id', '{:0>9d}', int(
-                        transaction.partner_id.main_id_number)),
+                        transaction.partner_id.roela_ident)),
                     ('roela_code', '{:0>10d}',
                      int(transaction.acquirer_id.roela_code)),
                 ]
@@ -298,7 +372,7 @@ class SiroPaymentRequest(models.Model):
                     # transaction.invoice_id.name),
                     ('Invoice', '{:0>15d}', 4458754),
                     ('Concept', 'fix', '0'),
-                    ('mes Factura', 'DDMM', transaction.invoice_id.date),
+                    ('mes Factura', 'DDMM', invoice_id.date),
                 ]
                 ),
                 ('cod moneda', 'fix', '0'),
@@ -311,7 +385,7 @@ class SiroPaymentRequest(models.Model):
                 ('filler', '{:0>19d}', 0),
                 ('Reference', 'plot', [
                     ('partner id', '{:0>9d}', int(
-                        transaction.partner_id.main_id_number)),
+                        transaction.partner_id.roela_ident)),
                     ('roela_code', '{:0>10d}',
                      int(transaction.acquirer_id.roela_code)),
                 ]
@@ -332,7 +406,7 @@ class SiroPaymentRequest(models.Model):
                             ('emp', 'fix', '0447'),
                             ('concepto', 'fix', '3'),
                             ('partner id', '{:0>9d}', int(
-                                transaction.partner_id.main_id_number)),
+                                transaction.partner_id.roela_ident)),
                             ('vencimiento', 'AAAAMMDD', date_expiration),
                             ('monto', '{:0>7d}', int(transaction.amount * 10)),
                             ('dias 2', '{:0>2d}', expiration_days),
@@ -348,12 +422,12 @@ class SiroPaymentRequest(models.Model):
             ]
             res += self.parce_text_line(plot)
             barcode = [('codigo barra', 'get_vd', [
-                    ('primer dv', 'get_vd',
+                ('primer dv', 'get_vd',
                         [
                             ('emp', 'fix', '0447'),
                             ('concepto', 'fix', '3'),
                             ('partner id', '{:0>9d}', int(
-                                transaction.partner_id.main_id_number)),
+                                transaction.partner_id.roela_ident)),
                             ('vencimiento', 'AAAAMMDD', date_expiration),
                             ('monto', '{:0>7d}', int(transaction.amount * 10)),
                             ('dias 2', '{:0>2d}', expiration_days),
@@ -363,8 +437,8 @@ class SiroPaymentRequest(models.Model):
                             ('roela_code', '{:0>10d}', int(
                                 transaction.acquirer_id.roela_code)),
                         ]
-                     )
-                ])]
+                        )
+            ])]
             transaction.siro_barcode = self.parce_text_line(barcode)
             res += '\n'
 
@@ -471,6 +545,26 @@ class paymentTransaction(models.Model):
         string='SIRO channel',
     )
 
+    def siro_s2s_do_transaction(self, **kwargs):
+        self._set_transaction_authorized()
+
+    """@api.multi
+    def _prepare_account_payment_vals(self):
+        self.ensure_one()
+        return {
+            'amount': self.amount,
+            'payment_type': 'inbound' if self.amount > 0 else 'outbound',
+            'currency_id': self.currency_id.id,
+            'partner_id': self.partner_id.id,
+            'partner_type': 'customer',
+            'invoice_ids': [(6, 0, self.invoice_ids.ids)],
+            'journal_id': self.acquirer_id.journal_id.id,
+            'company_id': self.acquirer_id.company_id.id,
+            'payment_method_id': self.env.ref('payment.account_payment_method_electronic_in').id,
+            'payment_token_id': self.payment_token_id and self.payment_token_id.id or None,
+            'payment_transaction_id': self.id,
+            'communication': self.reference,
+        }"""
 
 class paymentToken(models.Model):
 

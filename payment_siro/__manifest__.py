@@ -15,7 +15,7 @@
     'category': 'Payment',
     'version': '12.0.0.0.1',
 
-    'depends': ['payment', 'bit_late_payment_penalty'],
+    'depends': ['payment', 'bit_late_payment_penalty', 'sale_subscription'],
 
     'data': [
         # 'security/ir.model.access.csv',
