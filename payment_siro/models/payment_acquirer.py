@@ -50,6 +50,20 @@ class PaymentAcquirer(models.Model):
         res['tokenize'].append('siro')
         return res
 
+    def test_process(self, test):
+
+        transaction_ids = self.env['payment.transaction'].search([
+            ('state', 'in', ['authorized']),
+            ('acquirer_id.provider', '=', 'siro'),
+            #('siro_barcode', '!=', False),
+
+
+        ])
+        _logger.info('test OK %s' % transaction_ids)
+        for transaction in transaction_ids:
+            transaction.amount = transaction.amount
+            transaction._set_transaction_done()
+            transaction._reconcile_after_transaction_done()
 
     def list_process(self, date_from=False, date_to=False):
 
@@ -92,28 +106,28 @@ class PaymentAcquirer(models.Model):
     @api.model
     def get_alternate_format_file(self):
         return [
-                    ('payment_date', 'AAAAMMDD', 8),
-                    ('acreditation_date', 'AAAAMMDD', 8),
-                    ('first_expiration_date', 'AAAAMMDD', 8),
-                    ('amount', 'int_to_float', 7, 10),
-                    ('userid', 'char', 8),
-                    ('concept', 'char', 1),
-                    ('barcode', 'char', 56),
-                    ('chanel', 'char', 3),
-                ]
+            ('payment_date', 'AAAAMMDD', 8),
+            ('acreditation_date', 'AAAAMMDD', 8),
+            ('first_expiration_date', 'AAAAMMDD', 8),
+            ('amount', 'int_to_float', 7, 10),
+            ('userid', 'char', 8),
+            ('concept', 'char', 1),
+            ('barcode', 'char', 56),
+            ('chanel', 'char', 3),
+        ]
 
     @api.model
     def get_siro_extended_format_file(self):
         return [
-                    ('payment_date', 'AAAAMMDD', 8),
-                    ('acreditation_date', 'AAAAMMDD', 8),
-                    ('first_expiration_date', 'AAAAMMDD', 8),
-                    ('amount', 'int_to_float', 7, 10),
-                    ('userid', 'char', 8),
-                    ('concept', 'char', 1),
-                    ('barcode', 'char', 56),
-                    ('chanel', 'char', 3),
-                ]
+            ('payment_date', 'AAAAMMDD', 8),
+            ('acreditation_date', 'AAAAMMDD', 8),
+            ('first_expiration_date', 'AAAAMMDD', 8),
+            ('amount', 'int_to_float', 7, 10),
+            ('userid', 'char', 8),
+            ('concept', 'char', 1),
+            ('barcode', 'char', 56),
+            ('chanel', 'char', 3),
+        ]
 
     @api.model
     def parce_text_line(self, line, line_def):
@@ -312,7 +326,7 @@ class SiroPaymentRequest(models.Model):
                     data['state'] = 'pending'
                     req.transaction_ids._set_transaction_pending()
                 if res['estado'] == 'AUTORIZADO':
-                    data['state'] = 'autorized'
+                    data['state'] = 'authorized'
                     req.transaction_ids._set_transaction_authorized()
 
                 req.write(data)
@@ -548,23 +562,13 @@ class paymentTransaction(models.Model):
     def siro_s2s_do_transaction(self, **kwargs):
         self._set_transaction_authorized()
 
-    """@api.multi
+    @api.multi
     def _prepare_account_payment_vals(self):
         self.ensure_one()
-        return {
-            'amount': self.amount,
-            'payment_type': 'inbound' if self.amount > 0 else 'outbound',
-            'currency_id': self.currency_id.id,
-            'partner_id': self.partner_id.id,
-            'partner_type': 'customer',
-            'invoice_ids': [(6, 0, self.invoice_ids.ids)],
-            'journal_id': self.acquirer_id.journal_id.id,
-            'company_id': self.acquirer_id.company_id.id,
-            'payment_method_id': self.env.ref('payment.account_payment_method_electronic_in').id,
-            'payment_token_id': self.payment_token_id and self.payment_token_id.id or None,
-            'payment_transaction_id': self.id,
-            'communication': self.reference,
-        }"""
+        res = super()._prepare_account_payment_vals()
+        res['name'] = self.reference
+        return res
+
 
 class paymentToken(models.Model):
 
