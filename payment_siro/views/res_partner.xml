@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<odoo>
+    <data>
+
+        <record id="view_partners_form_payment_addsiro" model="ir.ui.view">
+                <field name="name">view.res.partner.form.payment.addsiro</field>
+                <field name="model">res.partner</field>
+                <field name="inherit_id" ref="base.view_partner_form"/>
+                <field name="priority" eval="15"/>
+                <field name="arch" type="xml">
+                    <button name="toggle_active" position="before">
+                        <button type="object" class="oe_stat_button"
+                                icon="fa-credit-card"
+                                name="add_siro_payment_token"
+                                attrs="{'invisible': [('payment_token_count', '>', 0)]}">
+                            <div class="o_form_field o_stat_info">
+                                <span class="o_stat_text">Agregar pago SIRO</span>
+                            </div>
+                        </button>
+                    </button>
+                </field>
+        </record>
+    </data>
+</odoo>

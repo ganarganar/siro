@@ -22,6 +22,8 @@
         'views/siro_form.xml',
         'views/payment_views.xml',
         'views/siro_payment_requests.xml',
+        'views/res_partner.xml',
+        'views/account_invoice.xml',
         'data/payment_acquirer_data.xml',
     ],
 

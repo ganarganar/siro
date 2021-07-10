@@ -51,11 +51,12 @@ class PaymentAcquirer(models.Model):
         return res
 
     def test_process(self, test):
-
+        if self.environment != 'test':
+            raise UserError(_('Solo se puede usar en modo tests'))
         transaction_ids = self.env['payment.transaction'].search([
             ('state', 'in', ['authorized']),
             ('acquirer_id.provider', '=', 'siro'),
-            #('siro_barcode', '!=', False),
+            ('siro_barcode', '!=', False),
 
 
         ])
@@ -207,10 +208,10 @@ class PaymentAcquirer(models.Model):
                     'transaction_ids': [(6, 0, transaction_ids.ids)],
                 }
             )
-            requests.create_register()
+            # requests.create_register()
             # self.env.cr.commit()
 
-            # requests.send_to_process()
+            requests.send_to_process()
 
 
 class SiroPaymentRequest(models.Model):
@@ -568,6 +569,15 @@ class paymentTransaction(models.Model):
         res = super()._prepare_account_payment_vals()
         res['name'] = self.reference
         return res
+
+    def siro_s2s_capture_transaction(self):
+        self.acquirer_id.list_process()
+        self.acquirer_id.siro_send_process()
+        if self.acquirer_id.environment == 'test':
+            self.acquirer_id.test_process('test')
+
+    def siro_s2s_void_transaction(self):
+        raise UserError(_('Las transacione de siro no puede ser canceladas una vez enviadas '))
 
 
 class paymentToken(models.Model):
