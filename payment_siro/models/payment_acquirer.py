@@ -775,8 +775,6 @@ class paymentTransaction(models.Model):
         # access_token = self.acquirer_id.siro_btn_get_token()
 
     def btn_process_payment_info(self,  result):
-        _logger.info(self)
-        _logger.info("result %r" % result)
         access_token = self.acquirer_id.siro_btn_get_token()
    
         api_url = self.acquirer_id.get_btn_url() + "/api/Pago/%s/%s" % (

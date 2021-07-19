@@ -19,6 +19,7 @@
 
     'data': [
         # 'security/ir.model.access.csv',
+        'views/templates.xml',
         'views/siro_form.xml',
         'views/payment_views.xml',
         'views/siro_payment_requests.xml',

@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1">
-        <template id="siro_form"/>
+    <data>
+        <template id="siro_form">
+            <div/>
+        </template>
+        <template id="siro_ok" name="Siro pago ok">
+            <div>OK</div>
+        </template>
+        <template id="siro_error" name="Siro pago error">
+            <div>Error</div>
+        </template>
     </data>
 </odoo>
