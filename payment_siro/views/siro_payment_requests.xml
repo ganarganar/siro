@@ -24,6 +24,8 @@
 				<header>
 					<button name="create_register" states="draft" string="Create" type="object"/>
 					<button name="send_to_process" states="draft" string="Send" type="object"/>
+
+					<button name="describre_json" string="Describe" type="object"/>
 					<button name="check_process" states="send,pending" string="Check" type="object"/>
 					<field name="state" widget="statusbar"/>
 				</header>

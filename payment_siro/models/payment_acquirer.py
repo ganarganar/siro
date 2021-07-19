@@ -2,24 +2,31 @@
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import datetime,  timedelta
+from uuid import uuid4
+
 import requests
 import re
 
 import logging
 _logger = logging.getLogger(__name__)
 
+# API 
 TEST_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
 PROD_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
 
 TEST_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
 PROD_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
 
+# BOTON 
+TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
+PROD_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
+
 
 class PaymentAcquirer(models.Model):
 
     _inherit = "payment.acquirer"
 
-    provider = fields.Selection(selection_add=[('siro', 'SIRO')])
+    provider = fields.Selection(selection_add=[('siro', 'SIRO'), ('siro_btn', 'SIRO botón de pagos')])
     siro_user = fields.Char(
         string='Siro User',
     )
@@ -44,10 +51,25 @@ class PaymentAcquirer(models.Model):
         default="2020-12-31"
     )
 
+    siro_btn_user = fields.Char(
+        string='Siro User',
+    )
+    siro_btn_password = fields.Char(
+        string='Siro Pass',
+    )
+    siro_btn_token = fields.Text(
+        string='Siro token',
+    )
+    siro_btn_token_expires = fields.Datetime(
+        string='Siro token expires',
+    )
+
     def _get_feature_support(self):
         res = super()._get_feature_support()
         res['authorize'].append('siro')
         res['tokenize'].append('siro')
+        res['authorize'].append('siro_btn')
+        res['tokenize'].append('siro_btn')
         return res
 
     def test_process(self, test):
@@ -153,6 +175,16 @@ class PaymentAcquirer(models.Model):
     def parce_render_line(self, line):
         pass
 
+    def get_btn_url(self):
+        self.ensure_one()
+
+        if self.environment == 'prod':
+            return PROD_BTN_API_URL
+        elif self.environment == 'test':
+            return TEST_BTN_API_URL
+        else:
+            raise UserError(_("Siro is disabled"))
+
     def get_auth_url(self):
         self.ensure_one()
 
@@ -194,6 +226,32 @@ class PaymentAcquirer(models.Model):
                 return res['access_token']
             else:
                 raise UserError(_("Siro can't login"))
+
+    def siro_btn_get_token(self):
+        self.ensure_one()
+
+        if self.siro_btn_token and fields.Datetime.from_string(self.siro_btn_token_expires) > datetime.now():
+            return self.siro_btn_token
+        else:
+            api_url = self.get_btn_url() + 'api/Sesion'
+
+            request_data = {
+                "Usuario": self.siro_btn_user,
+                "Password": self.siro_btn_password
+            }
+
+            response = requests.post(api_url, json=request_data)
+            if response.status_code == 200:
+                res = response.json()
+                _logger.info(res)
+                self.siro_btn_token = res['access_token']
+                self.siro_btn_token_expires = datetime.now(
+                ) + timedelta(seconds=res['expires_in'] - 20)
+                return res['access_token']
+            else:
+                _logger.error(response.text)
+                raise UserError(_("Button Siro can't login"))
+
 
     def siro_send_process(self):
         self.ensure_one()
@@ -342,6 +400,163 @@ class SiroPaymentRequest(models.Model):
                     body=_('Requests Error.  %r ' % response.content))
                 _logger.info(response.content)
 
+    def prepare_line_dict(self, transaction):
+
+        # La Factura es obligatoria como id
+        # la primer factura es que vale
+        if not len(transaction.invoice_ids):
+            raise UserError(_('No hat factura en la transaccion %s' % transaction.name ))
+        invoice_id = transaction.invoice_ids[0]
+        expiration_days = 20
+        date_expiration = fields.Date.from_string(invoice_id.date_due)
+        second_expiration = int(invoice_id.amount_total_with_penalty * 10)
+
+        third_expiration = second_expiration
+        date_second_expiration = date_expiration
+        date_third_expiration = date_expiration
+        company_id = self.env.user.company_id
+
+        return [
+            ('Reg code', 'fix', '5'),
+            ('Reference', 'plot', [
+                ('partner id', '{:0>9d}', int(
+                    transaction.partner_id.roela_ident)),
+                ('roela_code', '{:0>10d}',
+                 int(transaction.acquirer_id.roela_code)),
+            ]
+            ),
+            ('Factura', 'plot', [
+                # transaction.invoice_id.name),
+                ('Invoice', '{:0>15d}', 4458754),
+                ('Concept', 'fix', '0'),
+                ('mes Factura', 'MMAA', invoice_id.date_invoice),
+            ]
+            ),
+            ('cod moneda', 'fix', '0'),
+            ('vencimiento', 'AAAAMMDD', date_expiration),
+            ('monto', '{:0>11d}', int(transaction.amount * 10)),
+            ('seg vencimiento', 'AAAAMMDD', date_second_expiration),
+            ('monto seg vencimiento', '{:0>11d}', second_expiration),
+            ('ter vencimiento', 'AAAAMMDD', date_third_expiration),
+            ('monto ter vencimiento', '{:0>11d}', third_expiration),
+            ('filler', '{:0>19d}', 0),
+            ('Reference', 'plot', [
+                ('partner id', '{:0>9d}', int(
+                    transaction.partner_id.roela_ident)),
+                ('roela_code', '{:0>10d}',
+                 int(transaction.acquirer_id.roela_code)),
+            ]
+            ),
+
+            ('tiket ', 'plot', [
+                ('ente', '{: >15}', re.sub(
+                    '[\W_]+', '', company_id.name)[:15]),
+                ('concepto', '{: >25}',  re.sub(
+                    '[\W_]+', '', transaction.payment_token_id.name)[:25])
+            ]),
+            ('pantalla', '{: >15}', re.sub(
+                '[\W_]+', '', company_id.name)[:15]),
+
+            ('codigo barra', 'get_vd', [
+                ('primer dv', 'get_vd',
+                    [
+                        ('emp', 'fix', '0447'),
+                        ('concepto', 'fix', '3'),
+                        ('partner id', '{:0>9d}', int(
+                            transaction.partner_id.roela_ident)),
+                        ('vencimiento', 'AAAAMMDD', date_expiration),
+                        ('monto', '{:0>7d}', int(transaction.amount * 10)),
+                        ('dias 2', '{:0>2d}', expiration_days),
+                        ('monto 2', '{:0>7d}', second_expiration),
+                        ('dias 3', '{:0>2d}', expiration_days),
+                        ('monto 3', '{:0>7d}', third_expiration),
+                        ('roela_code', '{:0>10d}', int(
+                            transaction.acquirer_id.roela_code)),
+                    ]
+                 )
+            ]),
+            ('filler', '{:0>19d}', 0),
+        ]
+
+    def describre_json(self):
+        self.create_register()
+        res = 'ENCABEZADO<br>'
+
+        res += self.parce_text_line([
+            ('Reg code', 'fix', '0'),
+            ('banelco code', 'fix', '400'),
+            ('company code', 'fix', '0000'),
+            ('date', 'AAAAMMDD', fields.Date.today()),
+            ('filler', '{:0>12d}', 0),
+        ])
+        res += '<br/>---------<br/>'
+        total = 0
+        count_items = 0
+        for transaction in self.transaction_ids:
+            total += int(transaction.amount * 10)
+            count_items += 1
+            plot = self.prepare_line_dict(transaction)
+
+            res += self.describe_text_line(plot)
+            res += '---------<br/>'
+        res += self.describe_text_line([
+            ('Reg code', 'fix', '9'),
+            ('banelco code', 'fix', '400'),
+            ('company code', 'fix', '0000'),
+            ('date', 'AAAAMMDD', fields.Date.today()),
+            ('cant', '{:0>7d}', count_items),
+            ('filler', '{:0>7d}', 0),
+            ('total', '{:0>11d}', total * 10),
+            ('filler', '{:0>239d}', 0),
+
+        ])
+        self.message_post(body=res)
+
+        request_data = {
+            "base_pagos": self.data.replace('\n', '<br/>'),
+            "confirmar_automaticamente": True
+        }
+
+        self.message_post(body=request_data)
+
+    def describe_text_line(self, plot):
+        def get_vd(string):
+            vf = int(string[0])
+            base = [3, 5, 7, 9]
+            base_pos = 0
+
+            for letter in string[1:]:
+                vf += int(letter) * base[base_pos]
+                base_pos += 1
+                if base_pos == len(base):
+                    base_pos = 0
+                vf = vf / 2.0
+                vf = int(vf) % 10.0
+            return str(int(vf))
+
+        res = ''
+        for item in plot:
+            if item[1] == 'fix':
+                res += item[0] + ":" + item[2] + "|<br/>"
+            elif item[1] == 'AAAAMMDD':
+                res += item[0] + ":" + item[2].strftime("%Y%m%d") + "|<br/>"
+            elif item[1] == 'MMAA':
+                res += item[0] + ":" + item[2].strftime("%m%y") + "|<br/>"
+
+            elif item[1] == 'MMDD':
+                res += item[0] + ":" + item[2].strftime("%m%d") + "|<br/>"
+            elif item[1] == 'get_vd':
+
+                to_verify = self.parce_text_line(item[2])
+                res += item[0] + ":" + to_verify + get_vd(to_verify) + "|<br/>"
+            elif item[1] == 'plot':
+                res += item[0] + "<br/>" + \
+                    self.describe_text_line(item[2]) + "|<br/>"
+            else:
+                res += item[0] + ":" + item[1].format(item[2]) + "|<br/>"
+
+        return res
+
     def create_register(self):
         self.ensure_one()
         # esto podria armarlo como un string
@@ -364,77 +579,14 @@ class SiroPaymentRequest(models.Model):
             # La Factura es obligatoria como id
             # la primer factura es que vale
             invoice_id = transaction.invoice_ids[0]
-
             expiration_days = 20
             date_expiration = fields.Date.from_string(invoice_id.date_due)
             second_expiration = int(invoice_id.amount_total_with_penalty * 10)
+
             third_expiration = second_expiration
-            date_second_expiration = date_expiration + \
-                timedelta(days=expiration_days)
-            date_third_expiration = date_second_expiration
-            company_id = self.env.user.company_id
 
-            plot = [
-                ('Reg code', 'fix', '5'),
-                ('Reference', 'plot', [
-                    ('partner id', '{:0>9d}', int(
-                        transaction.partner_id.roela_ident)),
-                    ('roela_code', '{:0>10d}',
-                     int(transaction.acquirer_id.roela_code)),
-                ]
-                ),
-                ('Factura', 'plot', [
-                    # transaction.invoice_id.name),
-                    ('Invoice', '{:0>15d}', 4458754),
-                    ('Concept', 'fix', '0'),
-                    ('mes Factura', 'DDMM', invoice_id.date),
-                ]
-                ),
-                ('cod moneda', 'fix', '0'),
-                ('vencimiento', 'AAAAMMDD', date_expiration),
-                ('monto', '{:0>11d}', int(transaction.amount * 10)),
-                ('seg vencimiento', 'AAAAMMDD', date_second_expiration),
-                ('monto seg vencimiento', '{:0>11d}', second_expiration),
-                ('ter vencimiento', 'AAAAMMDD', date_third_expiration),
-                ('monto ter vencimiento', '{:0>11d}', third_expiration),
-                ('filler', '{:0>19d}', 0),
-                ('Reference', 'plot', [
-                    ('partner id', '{:0>9d}', int(
-                        transaction.partner_id.roela_ident)),
-                    ('roela_code', '{:0>10d}',
-                     int(transaction.acquirer_id.roela_code)),
-                ]
-                ),
+            plot = self.prepare_line_dict(transaction)
 
-                ('tiket ', 'plot', [
-                    ('ente', '{: >15}', re.sub(
-                        '[\W_]+', '', company_id.name)[:15]),
-                    ('concepto', '{: >25}',  re.sub(
-                        '[\W_]+', '', transaction.payment_token_id.name)[:25])
-                ]),
-                ('pantalla', '{: >15}', re.sub(
-                    '[\W_]+', '', company_id.name)[:15]),
-
-                ('codigo barra', 'get_vd', [
-                    ('primer dv', 'get_vd',
-                        [
-                            ('emp', 'fix', '0447'),
-                            ('concepto', 'fix', '3'),
-                            ('partner id', '{:0>9d}', int(
-                                transaction.partner_id.roela_ident)),
-                            ('vencimiento', 'AAAAMMDD', date_expiration),
-                            ('monto', '{:0>7d}', int(transaction.amount * 10)),
-                            ('dias 2', '{:0>2d}', expiration_days),
-                            ('monto 2', '{:0>7d}', second_expiration),
-                            ('dias 3', '{:0>2d}', expiration_days),
-                            ('monto 3', '{:0>7d}', third_expiration),
-                            ('roela_code', '{:0>10d}', int(
-                                transaction.acquirer_id.roela_code)),
-                        ]
-                     )
-                ]),
-                ('filler', '{:0>19d}', 0),
-            ]
             res += self.parce_text_line(plot)
             barcode = [('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
@@ -493,6 +645,8 @@ class SiroPaymentRequest(models.Model):
                 res += item[2]
             elif item[1] == 'AAAAMMDD':
                 res += item[2].strftime("%Y%m%d")
+            elif item[1] == 'MMAA':
+                res += item[2].strftime("%m%y")
             elif item[1] == 'MMDD':
                 res += item[2].strftime("%m%d")
             elif item[1] == 'get_vd':
@@ -559,8 +713,53 @@ class paymentTransaction(models.Model):
     siro_channel = fields.Char(
         string='SIRO channel',
     )
+    siro_btn_reference = fields.Char(
+        string='Btn Ref',
+    )
+    siro_btn_url = fields.Char(
+        string='Url',
+    )
+
+
+    def siro_btn_prepare_request(self): 
+        baseurl = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        baseurl = 'http://ganargan.ar'
+        rqst = {
+          "nro_cliente_empresa": self.acquirer_id.roela_code,
+          "nro_comprobante": re.sub('[\W_]+', '',self.invoice_ids[0].display_name)[:20].ljust(20),
+          "Concepto": re.sub('[\W_]+', '', self.invoice_ids[0].invoice_line_ids[0].display_name)[:40].ljust(40),
+          "Importe": self.amount,
+          "URL_OK": baseurl + "/payment_siro/ok/",
+          "URL_ERROR": baseurl + "/payment_siro/error/",
+          "IdReferenciaOperacion": self.reference,
+          "Detalle": []
+        }
+        return rqst
+
+    def create_siro_btn(self): 
+        access_token = self.acquirer_id.siro_btn_get_token()
+        api_url = self.acquirer_id.get_btn_url() + "/api/Pago"
+        headers = {"Authorization": "Bearer %s" % access_token}
+        for res in self:
+            request_data = res.siro_btn_prepare_request()
+            res.siro_btn_reference = request_data['IdReferenciaOperacion']
+            response = requests.post(api_url, headers=headers, json=request_data)
+
+            if response.status_code == 200:
+                _logger.info(response.json())
+                req = response.json()
+                res.siro_btn_reference = req['Hash']
+                res.siro_btn_url = req['Url']
+                res.state = 'authorized'
+            else: 
+                _logger.error(response.text)
+                raise UserError(
+                        _('Error %s ' % response.text))
 
     def siro_s2s_do_transaction(self, **kwargs):
+        self._set_transaction_authorized()
+
+    def siro_btn_s2s_do_transaction(self, **kwargs):
         self._set_transaction_authorized()
 
     @api.multi
@@ -570,6 +769,32 @@ class paymentTransaction(models.Model):
         res['name'] = self.reference
         return res
 
+    def siro_btn_s2s_capture_transaction(self):
+        self.ensure_one()
+        pass
+        # access_token = self.acquirer_id.siro_btn_get_token()
+
+    def btn_process_payment_info(self,  result):
+        _logger.info(self)
+        _logger.info("result %r" % result)
+        access_token = self.acquirer_id.siro_btn_get_token()
+   
+        api_url = self.acquirer_id.get_btn_url() + "/api/Pago/%s/%s" % (
+            self.siro_btn_reference,
+            result,
+        )
+
+        headers = {"Authorization": "Bearer %s" % access_token}
+
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 200:
+            req = response.json()
+            if req['PagoExitoso']:
+                self._set_transaction_done()
+                self._reconcile_after_transaction_done()
+        else:
+            raise UserError(response.content)
+
     def siro_s2s_capture_transaction(self):
         self.acquirer_id.list_process()
         self.acquirer_id.siro_send_process()
@@ -577,7 +802,11 @@ class paymentTransaction(models.Model):
             self.acquirer_id.test_process('test')
 
     def siro_s2s_void_transaction(self):
-        raise UserError(_('Las transacione de siro no puede ser canceladas una vez enviadas '))
+        raise UserError(
+            _('Las transacione de siro no puede ser canceladas una vez enviadas '))
+
+    def siro_btn_s2s_void_transaction(self):
+        self._set_transaction_cancel()
 
 
 class paymentToken(models.Model):

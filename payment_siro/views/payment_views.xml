@@ -10,39 +10,58 @@
                     <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" icon="fa-key" name="siro_get_token" type="object">
                         <div class="o_stat_info o_field_widget">
                             <span class="o_warning_text">Obtener</span>
-                            <span class="o_stat_text">Token</span>
+                            <span class="o_stat_text">Token API</span>
                         </div>
                     </button>
-
                     <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" icon="fa-upload" name="siro_send_process" type="object">
                         <div class="o_stat_info o_field_widget">
                             <span class="o_warning_text">Preparar</span>
                             <span class="o_stat_text">Envio</span>
                         </div>
                     </button>
-
                     <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" icon="fa-download" name="list_process" type="object">
                         <div class="o_stat_info o_field_widget">
-                            <span class="o_warning_text"><field name="roela_date_from"/></span>
-                            <span class="o_stat_text"><field name="roela_date_to"/></span>
+                            <span class="o_warning_text">
+                                <field name="roela_date_from"/>
+                            </span>
+                            <span class="o_stat_text">
+                                <field name="roela_date_to"/>
+                            </span>
                         </div>
                     </button>
                     <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" icon="fa-exclamation-circle" name="test_process" type="object">
                         <div class="o_stat_info o_field_widget">
                             <span class="o_warning_text">Test</span>
-
                         </div>
                     </button>
-
                 </button>
                 <xpath expr="//group[@name=&quot;acquirer&quot;]" position="after">
-                    <group attrs="{'invisible': [('provider', '!=', 'siro')]}">
+                    <group>
                         <field name="roela_code"/>
+                    </group>
+                    <group attrs="{'invisible': [('provider', '!=', 'siro')]}" string="SIRO Api">
                         <field name="siro_user"/>
                         <field name="siro_password" password="True"/>
                         <field attrs="{'readonly':True}" name="siro_token_expires"/>
                         <field attrs="{'readonly':True}" groups="base.group_no_one" name="siro_token"/>
-
+                        <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" colsspan="2" icon="fa-key" name="siro_get_token" type="object">
+                            <div class="o_stat_info o_field_widget">
+                                <span class="o_warning_text">Obtener</span>
+                                <span class="o_stat_text">Token API</span>
+                            </div>
+                        </button>
+                    </group>
+                    <group attrs="{'invisible': [('provider', '!=', 'siro_btn')]}" string="SIRO botón de pagos">
+                        <field name="siro_btn_user"/>
+                        <field name="siro_btn_password" password="True"/>
+                        <field attrs="{'readonly':True}" name="siro_btn_token_expires"/>
+                        <field attrs="{'readonly':True}" groups="base.group_no_one" name="siro_btn_token"/>
+                        <button attrs="{'invisible': [('provider', '!=', 'siro_btn')]}" class="oe_stat_button" colsspan="2" icon="fa-key" name="siro_btn_get_token" type="object">
+                            <div class="o_stat_info o_field_widget">
+                                <span class="o_warning_text">Obtener</span>
+                                <span class="o_stat_text">Token boton</span>
+                            </div>
+                        </button>
                     </group>
                 </xpath>
             </field>
@@ -60,8 +79,11 @@
                     <field name="siro_barcode"/>
                     <field name="siro_channel"/>
                     <field name="invoice_id"/>
+                    <field name="siro_btn_reference"/>
+                    <field name="siro_btn_url" widget="url"/>
                 </xpath>
             </field>
+
         </record>
         <record id="payment_token_form_view_form" model="ir.ui.view">
             <field name="name">payment_token_form_view.form</field>
@@ -69,7 +91,6 @@
             <field name="inherit_id" ref="payment.payment_token_form_view"/>
             <field name="arch" type="xml">
                 <field name="acquirer_ref" position="after">
-
                     <field attrs="{'invisible': True}" name="provider"/>
                     <field name="siro_requests"/>
                     <field name="siro_payment_button"/>

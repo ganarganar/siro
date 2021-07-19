@@ -9,6 +9,9 @@
                 <xpath expr="//button[@id='account_invoice_payment_btn']" position="after">
                     <button attrs="{'invisible': ['|', ('state', '!=', 'open'), ('authorized_transaction_ids', '!=', [])]}" name="action_add_siro" string="Cobrar por siro" type="object"/>
                 </xpath>
+                <xpath expr="//button[@id='account_invoice_payment_btn']" position="after">
+                    <button attrs="{'invisible': ['|', ('state', '!=', 'open'), ('authorized_transaction_ids', '!=', [])]}" name="action_add_siro_btn" string="Botón de pago siro" type="object"/>
+                </xpath>
             </field>
         </record>
     </data>
