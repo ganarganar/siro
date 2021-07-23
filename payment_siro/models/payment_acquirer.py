@@ -224,8 +224,8 @@ class PaymentAcquirer(models.Model):
                 self.siro_token_expires = datetime.now(
                 ) + timedelta(seconds=res['expires_in'] - 20)
                 return res['access_token']
-            else:
-                raise UserError(_("Siro can't login"))
+                else:
+                    raise UserError(_("Siro can't login"))
 
     def siro_btn_get_token(self):
         self.ensure_one()
@@ -785,11 +785,15 @@ class paymentTransaction(models.Model):
         headers = {"Authorization": "Bearer %s" % access_token}
 
         response = requests.get(api_url, headers=headers)
+        _logger.info(response.content)
         if response.status_code == 200:
             req = response.json()
             if req['PagoExitoso']:
                 self._set_transaction_done()
                 self._reconcile_after_transaction_done()
+            else:
+                raise UserError(response.content)
+
         else:
             raise UserError(response.content)
 

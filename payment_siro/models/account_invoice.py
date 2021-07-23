@@ -1,7 +1,7 @@
 
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
-from datetime import datetime,  timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 import requests
 import re
