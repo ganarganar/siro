@@ -224,8 +224,8 @@ class PaymentAcquirer(models.Model):
                 self.siro_token_expires = datetime.now(
                 ) + timedelta(seconds=res['expires_in'] - 20)
                 return res['access_token']
-                else:
-                    raise UserError(_("Siro can't login"))
+            else:
+                raise UserError(_("Siro can't login"))
 
     def siro_btn_get_token(self):
         self.ensure_one()
@@ -726,7 +726,7 @@ class paymentTransaction(models.Model):
         baseurl = 'http://ganargan.ar'
         rqst = {
           "nro_cliente_empresa": self.acquirer_id.roela_code,
-          "nro_comprobante": re.sub('[\W_]+', '',self.invoice_ids[0].display_name)[:20].ljust(20),
+          "nro_comprobante": re.sub('[\W_]+', '', self.invoice_ids[0].display_name)[:20].ljust(20),
           "Concepto": re.sub('[\W_]+', '', self.invoice_ids[0].invoice_line_ids[0].display_name)[:40].ljust(40),
           "Importe": self.amount,
           "URL_OK": baseurl + "/payment_siro/ok/",
