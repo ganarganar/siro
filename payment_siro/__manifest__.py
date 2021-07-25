@@ -15,10 +15,10 @@
     'category': 'Payment',
     'version': '12.0.0.0.1',
 
-    'depends': ['payment', 'bit_late_payment_penalty', 'sale_subscription'],
+    'depends': ['payment', 'l10n_ar_account', 'bit_late_payment_penalty', 'sale_subscription'],
 
     'data': [
-        # 'security/ir.model.access.csv',
+        'security/ir.model.access.csv',
         'views/templates.xml',
         'views/siro_form.xml',
         'views/payment_views.xml',

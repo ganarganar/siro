@@ -1,2 +1,2 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_payment_siro_payment_siro,payment_siro.payment_siro,model_payment_siro_payment_siro,base.group_user,1,1,1,1
+"id","name","group_id/id","perm_create","model_id/id","perm_write","perm_unlink","perm_read"
+"payment_siro.requests","siro.payment.requests","account.group_account_manager","True","payment_siro.model_siro_payment_requests","True","True","True"

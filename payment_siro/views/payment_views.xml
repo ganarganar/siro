@@ -72,8 +72,6 @@
             <field name="inherit_id" ref="payment.transaction_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='acquirer_reference']" position="after">
-                    <field name="siro_requests"/>
-                    <field name="siro_payment_button"/>
                     <field name="siro_requests_id"/>
                     <field name="siro_concept"/>
                     <field name="siro_barcode"/>
@@ -92,8 +90,6 @@
             <field name="arch" type="xml">
                 <field name="acquirer_ref" position="after">
                     <field attrs="{'invisible': True}" name="provider"/>
-                    <field name="siro_requests"/>
-                    <field name="siro_payment_button"/>
                 </field>
             </field>
         </record>

@@ -5,10 +5,23 @@
             <div/>
         </template>
         <template id="siro_ok" name="Siro pago ok">
-            <div>OK</div>
+            <t t-call="portal.frontend_layout">
+                <h1 class="display-1">;)</h1>
+                <h2>El pago fue exitoso</h2>
+                <div>Cualquier duda comuniquese con </div>
+            </t>
         </template>
         <template id="siro_error" name="Siro pago error">
-            <div>Error</div>
+            <t t-call="portal.frontend_layout">
+                <h1 class="display-1">:(</h1>
+                <h2>Error en el pago</h2>
+                <div>El mensje de SIRO fue : 
+                    <span t-esc="result['MensajeResultado']"/></div>
+                <div t-if="payment['invoice_ids'][0]['state'] == 'open'">
+                    <a class="btn btn-primary btn-lg" t-att-href="'/payment_siro/retry?access_token=%s' % payment['invoice_ids'][0]['access_token']">Intentar pagar nuevamente</a>
+                </div>
+                <div>Cualquier duda comuniquese con </div>
+            </t>
         </template>
     </data>
 </odoo>
