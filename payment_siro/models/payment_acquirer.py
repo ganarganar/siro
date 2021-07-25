@@ -10,14 +10,14 @@ import re
 import logging
 _logger = logging.getLogger(__name__)
 
-# API 
+# API
 TEST_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
 PROD_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
 
 TEST_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
 PROD_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
 
-# BOTON 
+# BOTON
 TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
 PROD_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
 
@@ -26,7 +26,8 @@ class PaymentAcquirer(models.Model):
 
     _inherit = "payment.acquirer"
 
-    provider = fields.Selection(selection_add=[('siro', 'SIRO API'), ('siro_btn', 'SIRO botón de pagos')])
+    provider = fields.Selection(
+        selection_add=[('siro', 'SIRO API'), ('siro_btn', 'SIRO botón de pagos')])
     siro_user = fields.Char(
         string='Siro User',
     )
@@ -87,6 +88,12 @@ class PaymentAcquirer(models.Model):
             transaction.amount = transaction.amount
             transaction._set_transaction_done()
             transaction._reconcile_after_transaction_done()
+
+    @api.model
+    def _cron_siro_list_process(self):
+        acquirer_ids = self.search([('provider', '=', 'siro')])
+        for acquirer_id in acquirer_ids:
+            acquirer_id.list_process()
 
     def list_process(self, date_from=False, date_to=False):
 
@@ -252,6 +259,14 @@ class PaymentAcquirer(models.Model):
                 _logger.error(response.text)
                 raise UserError(_("Button Siro can't login"))
 
+    @api.model
+    def _cron_siro_send_process(self):
+        _logger.info("self %r" % self)
+
+        acquirer_ids = self.search([('provider', '=', 'siro')])
+        _logger.info("acquirer_ids %r" % acquirer_ids)
+        for acquirer_id in acquirer_ids:
+            acquirer_id.siro_send_process()
 
     def siro_send_process(self):
         self.ensure_one()
@@ -259,6 +274,7 @@ class PaymentAcquirer(models.Model):
             ('siro_requests_id', '=', False),
             ('acquirer_id', '=', self.id),
         ])
+        _logger.info(transaction_ids);
         if len(transaction_ids):
             requests = self.env['siro.payment.requests'].create(
                 {
@@ -301,41 +317,44 @@ class paymentTransaction(models.Model):
         string='Url',
     )
 
-    def siro_btn_prepare_request(self): 
-        baseurl = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+    def siro_btn_prepare_request(self):
+        baseurl = self.env['ir.config_parameter'].sudo(
+        ).get_param('web.base.url')
         if baseurl.startswith('http://localhost'):
             baseurl = 'https://ganargan.ar'
         rqst = {
-          "nro_cliente_empresa": self.acquirer_id.roela_code,
-          "nro_comprobante": re.sub(r'[^a-zA-Z0-9 ]+', '', self.invoice_ids[0].display_name)[:20].rjust(20),
-          "Concepto": re.sub(r'[^a-zA-Z0-9 ]+', '', self.invoice_ids[0].invoice_line_ids[0].display_name)[:40].rjust(40),
-          "Importe": self.amount,
-          "URL_OK": baseurl + "/payment_siro/ok/",
-          "URL_ERROR": baseurl + "/payment_siro/error/",
-          "IdReferenciaOperacion": self.reference,
-          "Detalle": []
+            "nro_cliente_empresa": self.acquirer_id.roela_code,
+            "nro_comprobante": re.sub(r'[^a-zA-Z0-9 ]+', '', self.invoice_ids[0].display_name)[:20].rjust(20),
+            "Concepto": re.sub(r'[^a-zA-Z0-9 ]+', '', self.invoice_ids[0].invoice_line_ids[0].display_name)[:40].rjust(40),
+            "Importe": self.amount,
+            "URL_OK": baseurl + "/payment_siro/ok/",
+            "URL_ERROR": baseurl + "/payment_siro/error/",
+            "IdReferenciaOperacion": self.reference,
+            "Detalle": []
         }
         return rqst
 
-    def create_siro_btn(self): 
+    def create_siro_btn(self):
         access_token = self.acquirer_id.siro_btn_get_token()
         api_url = self.acquirer_id.get_btn_url() + "/api/Pago"
         headers = {"Authorization": "Bearer %s" % access_token}
         for res in self:
             request_data = res.siro_btn_prepare_request()
             res.siro_btn_reference = request_data['IdReferenciaOperacion']
-            response = requests.post(api_url, headers=headers, json=request_data)
+            response = requests.post(
+                api_url, headers=headers, json=request_data)
             if response.status_code == 200:
                 _logger.info(response.json())
                 req = response.json()
                 res.siro_btn_reference = req['Hash']
                 res.siro_btn_url = req['Url']
                 res.state = 'authorized'
-                self.invoice_ids[0].message_post(body=_('SIRO payment btn URL %s ' % req['Url']))
-            else: 
+                self.invoice_ids[0].message_post(
+                    body=_('SIRO payment btn URL %s ' % req['Url']))
+            else:
                 _logger.error(response.text)
                 raise UserError(
-                        _('Error %s ' % response.text))
+                    _('Error %s ' % response.text))
 
     def siro_s2s_do_transaction(self, **kwargs):
         self._set_transaction_authorized()
@@ -357,7 +376,7 @@ class paymentTransaction(models.Model):
 
     def btn_process_payment_info(self,  result):
         access_token = self.acquirer_id.siro_btn_get_token()
-   
+
         api_url = self.acquirer_id.get_btn_url() + "/api/Pago/%s/%s" % (
             self.siro_btn_reference,
             result,
@@ -401,5 +420,3 @@ class paymentToken(models.Model):
         string='provider',
         realted='acquirer_id.provider',
     )
-
-

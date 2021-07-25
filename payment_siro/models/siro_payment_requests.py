@@ -152,6 +152,7 @@ class SiroPaymentRequest(models.Model):
         date_second_expiration = date_expiration
         date_third_expiration = date_expiration
         company_id = self.env.user.company_id
+        nro_comprobante = re.sub(r'[^a-zA-Z0-9 ]+', '', invoice_id.display_name)
 
         return [
             ('Reg code', 'fix', '5'),
@@ -164,7 +165,7 @@ class SiroPaymentRequest(models.Model):
             ),
             ('Factura', 'plot', [
                 # transaction.invoice_id.name),
-                ('Invoice', '{:0>15d}', 4458754),
+                ('Invoice', '{:0>15d}', int(nro_comprobante)),
                 ('Concept', 'fix', '0'),
                 ('mes Factura', 'MMAA', invoice_id.date_invoice),
             ]
@@ -187,12 +188,12 @@ class SiroPaymentRequest(models.Model):
 
             ('tiket ', 'plot', [
                 ('ente', '{: >15}', re.sub(
-                    '[\W_]+', '', company_id.name)[:15]),
+                    r'[^a-zA-Z0-9 ]+', '', company_id.name)[:15]),
                 ('concepto', '{: >25}',  re.sub(
-                    '[\W_]+', '', transaction.payment_token_id.name)[:25])
+                    r'[^a-zA-Z0-9 ]+', '', transaction.payment_token_id.name)[:25])
             ]),
             ('pantalla', '{: >15}', re.sub(
-                '[\W_]+', '', company_id.name)[:15]),
+                r'[^a-zA-Z0-9 ]+', '', company_id.name)[:15]),
 
             ('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
@@ -325,6 +326,7 @@ class SiroPaymentRequest(models.Model):
             plot = self.prepare_line_dict(transaction)
 
             res += self.parce_text_line(plot)
+
             barcode = [('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
                         [
@@ -393,6 +395,7 @@ class SiroPaymentRequest(models.Model):
             elif item[1] == 'plot':
                 res += self.parce_text_line(item[2])
             else:
+                _logger.info(item)
                 res += item[1].format(item[2])
 
         return res

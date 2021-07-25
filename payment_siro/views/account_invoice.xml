@@ -12,6 +12,9 @@
                 <xpath expr="//button[@id='account_invoice_payment_btn']" position="after">
                     <button attrs="{'invisible': ['|', ('state', '!=', 'open'), ('authorized_transaction_ids', '!=', [])]}" name="action_add_siro_btn" string="Botón de pago siro" type="object"/>
                 </xpath>
+                <field name="reference" position="before">
+                    <field name="add_payment_onpost"/>
+                </field>
             </field>
         </record>
         <record id="action_add_siro_btn_action" model="ir.actions.server">
@@ -22,5 +25,15 @@
             <field name="state">code</field>
             <field name="code">records.action_add_siro_btn()</field>
         </record>
+        <record id="action_add_siro_action" model="ir.actions.server">
+            <field name="name">Cobrar mediante API SIRO</field>
+            <field name="type">ir.actions.server</field>
+            <field name="model_id" ref="account.model_account_invoice"/>
+            <field name="binding_model_id" ref="account.model_account_invoice"/>
+            <field name="state">code</field>
+            <field name="code">records.action_add_siro()</field>
+        </record>
+
+
     </data>
 </odoo>

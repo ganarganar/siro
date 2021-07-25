@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="cron_siro_send_process" model="ir.cron">
+        <field name="name">SIRO send to process</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="model_id" ref="model_payment_acquirer"/>
+        <field name="code">model._cron_siro_send_process()</field>
+        <field name="state">code</field>
+    </record>
+
+    <record id="cron_siro_list_process" model="ir.cron">
+        <field name="name">SIRO Get results</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="model_id" ref="model_payment_acquirer"/>
+        <field name="code">model._cron_siro_list_process()</field>
+        <field name="state">code</field>
+    </record>
+</odoo>
+    

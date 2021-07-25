@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<odoo>
+    <data>
+        <record id="sale_subscription_view_form" model="ir.ui.view">
+            <field name="name">sale.subscription.form.view</field>
+            <field name="model">sale.subscription</field>
+            <field name="inherit_id" ref="sale_subscription.sale_subscription_view_form"/>
+            <field name="arch" type="xml">
+                <field name="payment_token_id" position="attributes">
+                    <attribute name="attrs">{'invisible':[('payment_mode', 'in', ['manual'])]}</attribute>
+                </field>
+            </field>
+        </record>
+    </data>
+</odoo>
