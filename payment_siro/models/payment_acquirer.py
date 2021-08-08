@@ -112,7 +112,8 @@ class PaymentAcquirer(models.Model):
         response = requests.post(api_url, headers=headers, json=request_data)
 
         if response.status_code == 200:
-            line_def = self.get_alternate_format_file()
+            _logger.info(response.content)
+            line_def = self.get_siro_extended_format_file()
             res = response.json()
             for line in res:
                 line_info = self.parce_text_line(line, line_def)
@@ -155,8 +156,12 @@ class PaymentAcquirer(models.Model):
             ('amount', 'int_to_float', 7, 10),
             ('userid', 'char', 8),
             ('concept', 'char', 1),
-            ('barcode', 'char', 56),
+            ('barcode', 'char', 59),
             ('chanel', 'char', 3),
+            ('void_code', 'char', 3),
+            ('void_text', 'char', 20),
+            ('installment', 'int', 2),
+            ('card', 'char', 15),
         ]
 
     @api.model
@@ -261,10 +266,7 @@ class PaymentAcquirer(models.Model):
 
     @api.model
     def _cron_siro_send_process(self):
-        _logger.info("self %r" % self)
-
         acquirer_ids = self.search([('provider', '=', 'siro')])
-        _logger.info("acquirer_ids %r" % acquirer_ids)
         for acquirer_id in acquirer_ids:
             acquirer_id.siro_send_process()
 
@@ -317,6 +319,10 @@ class paymentTransaction(models.Model):
         string='Url',
     )
 
+    siro_btn_timeout = fields.Datetime(
+        string='Buton Timeout',
+    )
+
     def siro_btn_prepare_request(self):
         baseurl = self.env['ir.config_parameter'].sudo(
         ).get_param('web.base.url')
@@ -344,13 +350,11 @@ class paymentTransaction(models.Model):
             response = requests.post(
                 api_url, headers=headers, json=request_data)
             if response.status_code == 200:
-                _logger.info(response.json())
                 req = response.json()
                 res.siro_btn_reference = req['Hash']
                 res.siro_btn_url = req['Url']
+                res.siro_btn_timeout = datetime.now() + timedelta(minutes=60)
                 res.state = 'authorized'
-                self.invoice_ids[0].message_post(
-                    body=_('SIRO payment btn URL %s ' % req['Url']))
             else:
                 _logger.error(response.text)
                 raise UserError(
@@ -388,7 +392,7 @@ class paymentTransaction(models.Model):
         if response.status_code == 200:
             req = response.json()
             if req['PagoExitoso']:
-                if self.invoice_ids[0] == 'open':
+                if self.invoice_ids[0].state == 'open':
                     self._set_transaction_done()
                     self._reconcile_after_transaction_done()
                 return response.json()
@@ -406,10 +410,20 @@ class paymentTransaction(models.Model):
 
     def siro_s2s_void_transaction(self):
         raise UserError(
-            _('Las transacione de siro no puede ser canceladas una vez enviadas '))
+            _('Las transaciones de siro no puede ser canceladas una vez enviadas '))
 
     def siro_btn_s2s_void_transaction(self):
         self._set_transaction_cancel()
+
+    def cron_siro_btn_s2s_void_transaction(self):
+
+        transaction_ids = self.search([
+            ('acquirer_id.provider', '=', 'siro_btn'),
+            ('siro_btn_timeout', '<', fields.Datetime.now())
+        ])
+        if len(transaction_ids):
+            # to do chequear la transiaccio y cancelarla
+            transaction_ids.s2s_void_transaction()
 
 
 class paymentToken(models.Model):

@@ -40,14 +40,36 @@ class PaymentSiro(http.Controller):
 
     @http.route(['/payment_siro/retry'], auth='public', website=True)
     def payment_siro_retry(self, access_token, **kw):
+        values = {}
 
         invoice_id = request.env['account.invoice'].search([
             ('access_token', '=', access_token),
             ('state', '=', 'open')
         ])
         if invoice_id:
+            if invoice_id.state == 'paid':
+                values['payment'] = {}
+                return request.render("payment_siro.siro_ok", values)
+
             invoice_id.action_add_siro_btn()
-            last_transction = invoice_id.authorized_transaction_ids[-1]
-            if last_transction:
-                return request.redirect(last_transction.siro_btn_url)
+            siro_btn_url = invoice_id.action_siro_btn_get_url()[0]
+            return request.redirect(siro_btn_url)
+
         return 'fail'
+
+    @http.route(['/payment_siro/start'], auth='public', website=True)
+    def payment_siro_start(self, access_token, **kw):
+        values = {}
+        invoice_id = request.env['account.invoice'].search([
+            ('access_token', '=', access_token),
+            ('state', '=', 'open')
+        ])
+        if invoice_id:
+            # Si la factura esta pagada enviar el template siro_ok
+            if invoice_id.state == 'paid':
+                values['payment'] = {}
+                return request.render("payment_siro.siro_ok", values)
+
+            siro_btn_url = invoice_id.action_siro_btn_get_url()[0]
+            return request.redirect(siro_btn_url)
+        return 'fail'        

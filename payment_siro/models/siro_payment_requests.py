@@ -118,12 +118,14 @@ class SiroPaymentRequest(models.Model):
                     'thrid_expiration': res['total_tercer_vencimiento'],
 
                 }
+
                 if res['estado'] == 'PENDIENTE':
                     data['state'] = 'pending'
                     req.transaction_ids._set_transaction_pending()
-                if res['estado'] == 'AUTORIZADO':
+                if res['estado'] == 'PROCESADO':
                     data['state'] = 'authorized'
                     req.transaction_ids._set_transaction_authorized()
+
 
                 req.write(data)
                 ret_text = ''

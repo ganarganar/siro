@@ -32,12 +32,28 @@ class AccountInvoice(models.Model):
                     tx = subscription._do_payment(payment_token, inv, two_steps_sec=False)[0]
 
         return res
-    
+
+    @api.one
+    def action_siro_btn_get_url(self):
+        transaction = self.authorized_transaction_ids
+        if len(transaction) and transaction.acquirer_id.provider == 'siro_btn':
+            if transaction.siro_btn_timeout and fields.Datetime.from_string(transaction.siro_btn_timeout) < fields.Datetime.now():
+                transaction.siro_btn_s2s_void_transaction()
+                self.action_add_siro_btn()
+                transaction = self.authorized_transaction_ids
+            if transaction.siro_btn_url:
+                return transaction.siro_btn_url
+            else:
+                transaction.create_siro_btn()
+                return transaction.siro_btn_url
+
     @api.multi
     def action_add_siro_btn(self, two_steps_sec=True):
         payment_method = self.env.ref('payment_siro.payment_acquirer_siro_btn')
         txs = self.env['payment.transaction']
         for inv in self:
+            inv.get_portal_url()
+            access_token = inv.access_token
             if inv.state != 'open' or len(inv.authorized_transaction_ids) > 0:
                 continue
 
@@ -61,9 +77,12 @@ class AccountInvoice(models.Model):
                     'callback_method': 'reconcile_pending_transaction' if off_session else '_reconcile_and_send_mail',
                     'return_url': '/my/invoices/%s' % (inv.id),
                 }
+            baseurl = self.env['ir.config_parameter'].sudo().get_param('web.base.url')                
+            inv.message_post(
+                    body=_('SIRO payment btn URL %s/payment_siro/start?access_token=%s ' % (baseurl, access_token)))
 
             tx = tx_obj.create(values)
-            tx.create_siro_btn()
+            # tx.create_siro_btn()
             txs += tx
 
             payment_secure = {}
