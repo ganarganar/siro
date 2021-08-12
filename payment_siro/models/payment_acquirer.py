@@ -160,8 +160,8 @@ class PaymentAcquirer(models.Model):
             ('chanel', 'char', 3),
             ('void_code', 'char', 3),
             ('void_text', 'char', 20),
-            ('installment', 'int', 2),
-            ('card', 'char', 15),
+            #('installment', 'int', 2),
+            #('card', 'char', 15),
         ]
 
     @api.model
