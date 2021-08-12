@@ -14,6 +14,7 @@ class PaymentSiro(http.Controller):
         reference = kw.get('IdReferenciaOperacion', False)
         result = kw.get('IdResultado', False)
 
+
         if reference and result:
             payment = request.env['payment.transaction'].sudo().search([
                 ('reference', '=', reference)])

@@ -154,7 +154,8 @@ class SiroPaymentRequest(models.Model):
         date_second_expiration = date_expiration
         date_third_expiration = date_expiration
         company_id = self.env.user.company_id
-        nro_comprobante = re.sub(r'[^a-zA-Z0-9 ]+', '', invoice_id.display_name)
+        #nro_comprobante = re.sub(r'[^a-zA-Z0-9]+', '', invoice_id.display_name)
+        nro_comprobante = re.sub(r'[^0-9]+', '', invoice_id.display_name)
 
         return [
             ('Reg code', 'fix', '5'),
