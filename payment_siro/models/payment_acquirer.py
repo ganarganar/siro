@@ -18,8 +18,8 @@ TEST_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
 PROD_API_SIRO_URL = "https://apisiro.bancoroela.com.ar:49220"
 
 # BOTON
-TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443"
-PROD_BTN_API_URL = "https://www.bancoroela.com.ar:8081/api"
+TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
+PROD_BTN_API_URL = "https://www.bancoroela.com.ar:8081/"
 
 
 class PaymentAcquirer(models.Model):
@@ -245,8 +245,9 @@ class PaymentAcquirer(models.Model):
         if self.siro_btn_token and fields.Datetime.from_string(self.siro_btn_token_expires) > datetime.now():
             return self.siro_btn_token
         else:
-            api_url = self.get_btn_url() + '/api/Sesion'
-
+            
+            api_url = self.get_auth_url() 
+            _logger.info(api_url)
             request_data = {
                 "Usuario": self.siro_btn_user,
                 "Password": self.siro_btn_password
