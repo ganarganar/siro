@@ -12,14 +12,14 @@ _logger = logging.getLogger(__name__)
 
 # API
 TEST_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
-PROD_AUTH_API_URL = "https://apisesionhomologa.bancoroela.com.ar:49221/auth/Sesion"
+PROD_AUTH_API_URL = "https://apisesion.bancoroela.com.ar:49221/auth/Sesion"
 
 TEST_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
-PROD_API_SIRO_URL = "https://apisirohomologa.bancoroela.com.ar:49220"
+PROD_API_SIRO_URL = "https://apisiro.bancoroela.com.ar:49220"
 
 # BOTON
-TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
-PROD_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443/"
+TEST_BTN_API_URL = "https://srvwebhomologa.bancoroela.com.ar:44443"
+PROD_BTN_API_URL = "https://www.bancoroela.com.ar:8081/api"
 
 
 class PaymentAcquirer(models.Model):
@@ -245,7 +245,7 @@ class PaymentAcquirer(models.Model):
         if self.siro_btn_token and fields.Datetime.from_string(self.siro_btn_token_expires) > datetime.now():
             return self.siro_btn_token
         else:
-            api_url = self.get_btn_url() + 'api/Sesion'
+            api_url = self.get_btn_url() + '/api/Sesion'
 
             request_data = {
                 "Usuario": self.siro_btn_user,
