@@ -209,7 +209,7 @@ class PaymentAcquirer(models.Model):
 
     def get_api_siro_url(self):
         self.ensure_one()
-        if self.environment == 'enabled':
+        if self.environment == 'prod':
             return PROD_API_SIRO_URL
         elif self.environment == 'test':
             return TEST_API_SIRO_URL
