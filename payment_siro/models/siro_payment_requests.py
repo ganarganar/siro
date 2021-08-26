@@ -37,6 +37,7 @@ class SiroPaymentRequest(models.Model):
     )
     state = fields.Selection(
         [('draft', 'draft'),
+         ('error', 'error'),
          ('send', 'send'),
          ('pending', 'pending'),
          ('process', 'process'),
@@ -70,6 +71,9 @@ class SiroPaymentRequest(models.Model):
     reg_err = fields.Text(
         string='reg_err',
     )
+
+    def action_draft(self):
+        self.state = 'draft'
 
     def send_to_process(self):
         self.ensure_one()
@@ -122,10 +126,11 @@ class SiroPaymentRequest(models.Model):
                 if res['estado'] == 'PENDIENTE':
                     data['state'] = 'pending'
                     req.transaction_ids._set_transaction_pending()
-                if res['estado'] == 'PROCESADO':
+                elif res['estado'] == 'PROCESADO':
                     data['state'] = 'authorized'
-                    req.transaction_ids._set_transaction_authorized()
-
+                elif res['estado'] == 'ERROR':
+                    data['state'] = 'error'
+                    # req.transaction_ids._set_transaction_authorized()
 
                 req.write(data)
                 ret_text = ''
@@ -135,6 +140,7 @@ class SiroPaymentRequest(models.Model):
                     'requests check. Transaction number %s <br/>\n %s' % (req.name, ret_text)))
 
             else:
+                req.state = 'error'
                 self.message_post(
                     body=_('Requests Error.  %r ' % response.content))
                 _logger.info(response.content)
@@ -228,7 +234,7 @@ class SiroPaymentRequest(models.Model):
             ('banelco code', 'fix', '400'),
             ('company code', 'fix', '0000'),
             ('date', 'AAAAMMDD', fields.Date.today()),
-            ('filler', '{:0>12d}', 0),
+            ('filler', '{:0>264d}', 0),
         ])
         res += '<br/>---------<br/>'
         total = 0
@@ -308,8 +314,9 @@ class SiroPaymentRequest(models.Model):
             ('banelco code', 'fix', '400'),
             ('company code', 'fix', '0000'),
             ('date', 'AAAAMMDD', fields.Date.today()),
-            ('filler', '{:0>12d}', 0),
+            ('filler', '{:0>264d}', 0),
         ])
+        _logger.info(res)
         res += '\n'
         total = 0
         count_items = 0
@@ -398,7 +405,6 @@ class SiroPaymentRequest(models.Model):
             elif item[1] == 'plot':
                 res += self.parce_text_line(item[2])
             else:
-                _logger.info(item)
                 res += item[1].format(item[2])
 
         return res
