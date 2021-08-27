@@ -41,6 +41,7 @@ class SiroPaymentRequest(models.Model):
          ('send', 'send'),
          ('pending', 'pending'),
          ('process', 'process'),
+         ('authorized', ' Authorized'),
          ('done', 'done'),
          ('cancel', 'cancel'), ],
         string='State',
@@ -73,7 +74,7 @@ class SiroPaymentRequest(models.Model):
     )
 
     def action_draft(self):
-        self.state = 'draft'
+        self.write({'state': 'draft', 'name': '/', 'data': ''})
 
     def send_to_process(self):
         self.ensure_one()
@@ -142,7 +143,7 @@ class SiroPaymentRequest(models.Model):
             else:
                 req.state = 'error'
                 self.message_post(
-                    body=_('Requests Error.  %r ' % response.content))
+                    body=_('Requests Error. %s  %r ' % (response.status_code, response.content)))
                 _logger.info(response.content)
 
     def prepare_line_dict(self, transaction):
@@ -154,7 +155,7 @@ class SiroPaymentRequest(models.Model):
         invoice_id = transaction.invoice_ids[0]
         expiration_days = 20
         date_expiration = fields.Date.from_string(invoice_id.date_due)
-        second_expiration = int(invoice_id.amount_total_with_penalty * 10)
+        second_expiration = int(invoice_id.amount_total_with_penalty * 100)
 
         third_expiration = second_expiration
         date_second_expiration = date_expiration
@@ -181,7 +182,7 @@ class SiroPaymentRequest(models.Model):
             ),
             ('cod moneda', 'fix', '0'),
             ('vencimiento', 'AAAAMMDD', date_expiration),
-            ('monto', '{:0>11d}', int(transaction.amount * 10)),
+            ('monto', '{:0>11d}', int(transaction.amount * 100)),
             ('seg vencimiento', 'AAAAMMDD', date_second_expiration),
             ('monto seg vencimiento', '{:0>11d}', second_expiration),
             ('ter vencimiento', 'AAAAMMDD', date_third_expiration),
@@ -196,13 +197,14 @@ class SiroPaymentRequest(models.Model):
             ),
 
             ('tiket ', 'plot', [
-                ('ente', '{: >15}', re.sub(
-                    r'[^a-zA-Z0-9 ]+', '', company_id.name)[:15]),
-                ('concepto', '{: >25}',  re.sub(
-                    r'[^a-zA-Z0-9 ]+', '', transaction.payment_token_id.name)[:25])
+                ('ente', '{: <15}', re.sub(
+                    r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
+                ('concepto', '{: <25}',  re.sub(
+                    r'[^a-zA-Z0-9 ]+', '', transaction.payment_token_id.name.upper())[:25])
             ]),
-            ('pantalla', '{: >15}', re.sub(
-                r'[^a-zA-Z0-9 ]+', '', company_id.name)[:15]),
+            ('pantalla', '{: <15}', re.sub(
+                r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
+            ('filler', 'fix', ' '),
 
             ('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
@@ -212,7 +214,7 @@ class SiroPaymentRequest(models.Model):
                         ('partner id', '{:0>9d}', int(
                             transaction.partner_id.roela_ident)),
                         ('vencimiento', 'AAAAMMDD', date_expiration),
-                        ('monto', '{:0>7d}', int(transaction.amount * 10)),
+                        ('monto', '{:0>7d}', int(transaction.amount * 100)),
                         ('dias 2', '{:0>2d}', expiration_days),
                         ('monto 2', '{:0>7d}', second_expiration),
                         ('dias 3', '{:0>2d}', expiration_days),
@@ -222,7 +224,7 @@ class SiroPaymentRequest(models.Model):
                     ]
                  )
             ]),
-            ('filler', '{:0>19d}', 0),
+            ('filler', '{:0>29d}', 0),
         ]
 
     def describre_json(self):
@@ -240,7 +242,7 @@ class SiroPaymentRequest(models.Model):
         total = 0
         count_items = 0
         for transaction in self.transaction_ids:
-            total += int(transaction.amount * 10)
+            total += int(transaction.amount * 100)
             count_items += 1
             plot = self.prepare_line_dict(transaction)
 
@@ -253,7 +255,7 @@ class SiroPaymentRequest(models.Model):
             ('date', 'AAAAMMDD', fields.Date.today()),
             ('cant', '{:0>7d}', count_items),
             ('filler', '{:0>7d}', 0),
-            ('total', '{:0>11d}', total * 10),
+            ('total', '{:0>11d}', total),
             ('filler', '{:0>239d}', 0),
 
         ])
@@ -316,12 +318,12 @@ class SiroPaymentRequest(models.Model):
             ('date', 'AAAAMMDD', fields.Date.today()),
             ('filler', '{:0>264d}', 0),
         ])
-        _logger.info(res)
         res += '\n'
         total = 0
         count_items = 0
         for transaction in self.transaction_ids:
-            total += int(transaction.amount * 10)
+            _logger.info(transaction.amount)
+            total += int(transaction.amount * 100)
             count_items += 1
 
             # La Factura es obligatoria como id
@@ -329,7 +331,7 @@ class SiroPaymentRequest(models.Model):
             invoice_id = transaction.invoice_ids[0]
             expiration_days = 20
             date_expiration = fields.Date.from_string(invoice_id.date_due)
-            second_expiration = int(invoice_id.amount_total_with_penalty * 10)
+            second_expiration = int(invoice_id.amount_total_with_penalty * 100)
 
             third_expiration = second_expiration
 
@@ -345,7 +347,7 @@ class SiroPaymentRequest(models.Model):
                             ('partner id', '{:0>9d}', int(
                                 transaction.partner_id.roela_ident)),
                             ('vencimiento', 'AAAAMMDD', date_expiration),
-                            ('monto', '{:0>7d}', int(transaction.amount * 10)),
+                            ('monto', '{:0>7d}', int(transaction.amount * 100)),
                             ('dias 2', '{:0>2d}', expiration_days),
                             ('monto 2', '{:0>7d}', second_expiration),
                             ('dias 3', '{:0>2d}', expiration_days),
@@ -365,7 +367,7 @@ class SiroPaymentRequest(models.Model):
             ('date', 'AAAAMMDD', fields.Date.today()),
             ('cant', '{:0>7d}', count_items),
             ('filler', '{:0>7d}', 0),
-            ('total', '{:0>11d}', total * 10),
+            ('total', '{:0>11d}', total),
             ('filler', '{:0>239d}', 0),
 
         ])
@@ -399,7 +401,6 @@ class SiroPaymentRequest(models.Model):
             elif item[1] == 'MMDD':
                 res += item[2].strftime("%m%d")
             elif item[1] == 'get_vd':
-
                 to_verify = self.parce_text_line(item[2])
                 res += to_verify + get_vd(to_verify)
             elif item[1] == 'plot':

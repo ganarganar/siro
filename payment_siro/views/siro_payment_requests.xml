@@ -26,7 +26,7 @@
 					<button name="send_to_process" states="draft" string="Send" type="object"/>
 					<button name="action_draft" states="error" string="Reiniciar" type="object"/>
 					<button name="describre_json" string="Describe" type="object"/>
-					<button name="check_process" states="send,pending" string="Check" type="object"/>
+					<button name="check_process" states="send,pending,authorized,error" string="Check" type="object"/>
 					<field name="state" widget="statusbar"/>
 				</header>
 				<sheet>
