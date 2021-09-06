@@ -1,7 +1,7 @@
 
 from odoo import fields, models, _
 from odoo.exceptions import UserError
-
+from datetime import timedelta
 import requests
 import re
 
@@ -158,8 +158,9 @@ class SiroPaymentRequest(models.Model):
         second_expiration = int(invoice_id.amount_total_with_penalty * 100)
 
         third_expiration = second_expiration
-        date_second_expiration = date_expiration
-        date_third_expiration = date_expiration
+        date_second_expiration = date_expiration + timedelta(invoice_id.company_id.days_2_expiration)
+        date_third_expiration = date_expiration + timedelta(invoice_id.company_id.days_3_expiration)
+
         company_id = self.env.user.company_id
         #nro_comprobante = re.sub(r'[^a-zA-Z0-9]+', '', invoice_id.display_name)
         nro_comprobante = re.sub(r'[^0-9]+', '', invoice_id.display_name)
@@ -215,9 +216,9 @@ class SiroPaymentRequest(models.Model):
                             transaction.partner_id.roela_ident)),
                         ('vencimiento', 'AAAAMMDD', date_expiration),
                         ('monto', '{:0>7d}', int(transaction.amount * 100)),
-                        ('dias 2', '{:0>2d}', expiration_days),
+                        ('dias 2', '{:0>2d}', invoice_id.company_id.days_2_expiration),
                         ('monto 2', '{:0>7d}', second_expiration),
-                        ('dias 3', '{:0>2d}', expiration_days),
+                        ('dias 3', '{:0>2d}', invoice_id.company_id.days_3_expiration),
                         ('monto 3', '{:0>7d}', third_expiration),
                         ('roela_code', '{:0>10d}', int(
                             transaction.acquirer_id.roela_code)),
