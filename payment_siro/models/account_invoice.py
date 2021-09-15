@@ -81,7 +81,7 @@ class AccountInvoice(models.Model):
             inv.message_post(
                     body=_('SIRO payment btn URL %s/payment_siro/start?access_token=%s ' % (baseurl, access_token)))
 
-            tx = tx_obj.create(values)
+            tx = tx_obj.sudo().create(values)
             # tx.create_siro_btn()
             txs += tx
 
@@ -133,7 +133,7 @@ class AccountInvoice(models.Model):
                     'return_url': '/my/invoices/%s' % (invoice.id),
                 }
 
-                tx = tx_obj.create(values)
+                tx = tx_obj.sudo().create(values)
                 txs += tx
                 payment_secure = {}
                 tx.with_context(off_session=off_session).s2s_do_transaction(**payment_secure)
