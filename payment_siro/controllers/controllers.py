@@ -73,3 +73,5 @@ class PaymentSiro(http.Controller):
             siro_btn_url = invoice_id.sudo().action_siro_btn_get_url()[0]
             return request.redirect(siro_btn_url)
         return 'fail'        
+
+#dummie        
