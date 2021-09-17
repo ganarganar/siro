@@ -22,7 +22,6 @@ class PaymentSiro(http.Controller):
                 values['payment'] = payment
                 try:    
                     result = payment.btn_process_payment_info(result)
-                    _logger.info(result)
 
                     values['result'] = result 
                     if result['PagoExitoso']:
@@ -53,7 +52,7 @@ class PaymentSiro(http.Controller):
                 return request.render("payment_siro.siro_ok", values)
 
             invoice_id.action_add_siro_btn()
-            siro_btn_url = invoice_id.action_siro_btn_get_url()[0]
+            siro_btn_url = invoice_id.sudo().action_siro_btn_get_url()[0]
             return request.redirect(siro_btn_url)
 
         return 'fail'
@@ -71,6 +70,6 @@ class PaymentSiro(http.Controller):
                 values['payment'] = {}
                 return request.render("payment_siro.siro_ok", values)
 
-            siro_btn_url = invoice_id.action_siro_btn_get_url()[0]
+            siro_btn_url = invoice_id.sudo().action_siro_btn_get_url()[0]
             return request.redirect(siro_btn_url)
         return 'fail'        
