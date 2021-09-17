@@ -46,7 +46,7 @@ class PaymentSiro(http.Controller):
             ('access_token', '=', access_token),
             ('state', '=', 'open')
         ])
-        if invoice_id:
+        if len(invoice_id):
             if invoice_id.state == 'paid':
                 values['payment'] = {}
                 return request.render("payment_siro.siro_ok", values)
@@ -60,11 +60,13 @@ class PaymentSiro(http.Controller):
     @http.route(['/payment_siro/start'], auth='public', website=True)
     def payment_siro_start(self, access_token, **kw):
         values = {}
+        _logger.info('payment_siro_start')
         invoice_id = request.env['account.invoice'].sudo().search([
             ('access_token', '=', access_token),
             ('state', '=', 'open')
         ])
-        if invoice_id:
+        _logger.info('invoice_id %s' % invoice_id)
+        if len(invoice_id):
             # Si la factura esta pagada enviar el template siro_ok
             if invoice_id.state == 'paid':
                 values['payment'] = {}
