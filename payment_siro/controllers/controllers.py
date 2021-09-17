@@ -21,13 +21,13 @@ class PaymentSiro(http.Controller):
             if payment:
                 values['payment'] = payment
                 try:    
-                    result = payment.btn_process_payment_info(result)
+                    result = payment.sudo().btn_process_payment_info(result)
 
                     values['result'] = result 
                     if result['PagoExitoso']:
                         return request.render("payment_siro.siro_ok", values)
                     else: 
-                        payment.siro_btn_s2s_void_transaction()
+                        payment.sudo().siro_btn_s2s_void_transaction()
                         return request.render("payment_siro.siro_error", values)
 
                 except Exception as e:
@@ -42,7 +42,7 @@ class PaymentSiro(http.Controller):
     def payment_siro_retry(self, access_token, **kw):
         values = {}
 
-        invoice_id = request.env['account.invoice'].search([
+        invoice_id = request.env['account.invoice'].sudo().search([
             ('access_token', '=', access_token),
             ('state', '=', 'open')
         ])
@@ -51,7 +51,7 @@ class PaymentSiro(http.Controller):
                 values['payment'] = {}
                 return request.render("payment_siro.siro_ok", values)
 
-            invoice_id.action_add_siro_btn()
+            invoice_id.sudo().action_add_siro_btn()
             siro_btn_url = invoice_id.sudo().action_siro_btn_get_url()[0]
             return request.redirect(siro_btn_url)
 
@@ -60,7 +60,7 @@ class PaymentSiro(http.Controller):
     @http.route(['/payment_siro/start'], auth='public', website=True)
     def payment_siro_start(self, access_token, **kw):
         values = {}
-        invoice_id = request.env['account.invoice'].search([
+        invoice_id = request.env['account.invoice'].sudo().search([
             ('access_token', '=', access_token),
             ('state', '=', 'open')
         ])
