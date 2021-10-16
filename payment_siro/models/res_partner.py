@@ -29,7 +29,7 @@ class ResPartner(models.Model):
                 roela_ident = re.findall("\d+", res.main_id_number)[0]
                 #es cuit
                 if len(roela_ident) > 9:
-                    res.roela_ident = roela_ident[2:9]
+                    res.roela_ident = roela_ident[2:10]
                 else:
                     res.roela_ident = roela_ident
 
