@@ -201,7 +201,7 @@ class SiroPaymentRequest(models.Model):
                 ('ente', '{: <15}', re.sub(
                     r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
                 ('concepto', '{: <25}',  re.sub(
-                    r'[^a-zA-Z0-9 ]+', '', transaction.payment_token_id.name.upper())[:25])
+                    r'[^a-zA-Z0-9 ]+', '', invoice_id.display_name.upper())[:25])
             ]),
             ('pantalla', '{: <15}', re.sub(
                 r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
