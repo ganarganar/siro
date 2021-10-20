@@ -34,6 +34,8 @@
 						<field name="name"/>
 						<field name="acquirer_id"/>
 						<field name="transaction_ids"/>
+						<field name="default_concept"/>
+						
 					</group>
 					<notebook>
 						<page id="info" string="info">

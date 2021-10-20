@@ -72,6 +72,10 @@ class SiroPaymentRequest(models.Model):
     reg_err = fields.Text(
         string='reg_err',
     )
+    default_concept = fields.Char(
+        string='Concept por Defecto',
+        default='0'
+    )
 
     def action_draft(self):
         self.write({'state': 'draft', 'name': '/', 'data': ''})
@@ -177,7 +181,7 @@ class SiroPaymentRequest(models.Model):
             ('Factura', 'plot', [
                 # transaction.invoice_id.name),
                 ('Invoice', '{:0>15d}', int(nro_comprobante)),
-                ('Concept', 'fix', '0'),
+                ('Concept', 'fix', self.default_concept),
                 ('mes Factura', 'MMAA', invoice_id.date_invoice),
             ]
             ),
