@@ -113,7 +113,8 @@ class PaymentAcquirer(models.Model):
 
         if response.status_code == 200:
             _logger.info(response.content)
-            line_def = self.get_siro_extended_format_file()
+            line_def = self.get_alternate_format_file()
+
             res = response.json()
             for line in res:
                 line_info = self.parce_text_line(line, line_def)
@@ -410,8 +411,10 @@ class paymentTransaction(models.Model):
             self.acquirer_id.test_process('test')
 
     def siro_s2s_void_transaction(self):
+        self._set_transaction_cancel()
+        """
         raise UserError(
-            _('Las transaciones de siro no puede ser canceladas una vez enviadas '))
+            _('Las transaciones de siro no puede ser canceladas una vez enviadas '))"""
 
     def siro_btn_s2s_void_transaction(self):
         self._set_transaction_cancel()
