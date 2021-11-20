@@ -8,6 +8,10 @@ class ResCompany(models.Model):
     roela_code = fields.Char(
         string='Roela Identification',
     )
+    days_expiration = fields.Integer(
+        string='days to second expiration',
+        default=3
+    )
 
     days_2_expiration = fields.Integer(
         string='days to second expiration',

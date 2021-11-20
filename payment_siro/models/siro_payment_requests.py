@@ -155,15 +155,19 @@ class SiroPaymentRequest(models.Model):
         # La Factura es obligatoria como id
         # la primer factura es que vale
         if not len(transaction.invoice_ids):
-            raise UserError(_('No hat factura en la transaccion %s' % transaction.name ))
+            raise UserError(
+                _('No hat factura en la transaccion %s' % transaction.name))
         invoice_id = transaction.invoice_ids[0]
-        expiration_days = 20
-        date_expiration = fields.Date.from_string(invoice_id.date_due)
+        date_expiration = fields.Date.from_string(invoice_id.date_invoice) \
+            + timedelta(days=(invoice_id.company_id.days_expiration))
+        date_second_expiration = date_expiration \
+            + timedelta(days=invoice_id.company_id.days_2_expiration)
+        date_third_expiration = date_expiration \
+            + timedelta(days=invoice_id.company_id.days_3_expiration)
+
         second_expiration = int(invoice_id.amount_total_with_penalty * 100)
 
         third_expiration = second_expiration
-        date_second_expiration = date_expiration + timedelta(invoice_id.company_id.days_2_expiration)
-        date_third_expiration = date_expiration + timedelta(invoice_id.company_id.days_3_expiration)
 
         company_id = self.env.user.company_id
         #nro_comprobante = re.sub(r'[^a-zA-Z0-9]+', '', invoice_id.display_name)
@@ -209,26 +213,28 @@ class SiroPaymentRequest(models.Model):
             ]),
             ('pantalla', '{: <15}', re.sub(
                 r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
-            ('filler', 'fix', ' '),
 
             ('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
                     [
                         ('emp', 'fix', '0447'),
-                        ('concepto', 'fix', '3'),
-                        ('partner id', '{:0>9d}', int(
+                        ('concepto', 'fix', self.default_concept),
+                        ('partner id', '{:0>8d}', int(
                             transaction.partner_id.roela_ident)),
-                        ('vencimiento', 'AAAAMMDD', date_expiration),
+                        ('vencimiento', 'AAMMDD', date_expiration),
                         ('monto', '{:0>7d}', int(transaction.amount * 100)),
-                        ('dias 2', '{:0>2d}', invoice_id.company_id.days_2_expiration),
+                        ('dias 2', '{:0>2d}',
+                         invoice_id.company_id.days_2_expiration),
                         ('monto 2', '{:0>7d}', second_expiration),
-                        ('dias 3', '{:0>2d}', invoice_id.company_id.days_3_expiration),
+                        ('dias 3', '{:0>2d}',
+                         invoice_id.company_id.days_3_expiration),
                         ('monto 3', '{:0>7d}', third_expiration),
                         ('roela_code', '{:0>10d}', int(
                             transaction.acquirer_id.roela_code)),
                     ]
                  )
             ]),
+            ('filler', 'fix', '    '),
             ('filler', '{:0>29d}', 0),
         ]
 
@@ -292,6 +298,8 @@ class SiroPaymentRequest(models.Model):
         for item in plot:
             if item[1] == 'fix':
                 res += item[0] + ":" + item[2] + "|<br/>"
+            elif item[1] == 'AAMMDD':
+                res += item[0] + ":" + item[2].strftime("%y%m%d") + "|<br/>"
             elif item[1] == 'AAAAMMDD':
                 res += item[0] + ":" + item[2].strftime("%Y%m%d") + "|<br/>"
             elif item[1] == 'MMAA':
@@ -334,8 +342,11 @@ class SiroPaymentRequest(models.Model):
             # La Factura es obligatoria como id
             # la primer factura es que vale
             invoice_id = transaction.invoice_ids[0]
-            expiration_days = 20
-            date_expiration = fields.Date.from_string(invoice_id.date_due)
+            date_expiration = fields.Date.from_string(invoice_id.date_invoice) \
+                + timedelta(days=(invoice_id.company_id.days_expiration))
+            days_2_expiration = invoice_id.company_id.days_2_expiration
+
+            days_3_expiration = invoice_id.company_id.days_3_expiration
             second_expiration = int(invoice_id.amount_total_with_penalty * 100)
 
             third_expiration = second_expiration
@@ -348,14 +359,15 @@ class SiroPaymentRequest(models.Model):
                 ('primer dv', 'get_vd',
                         [
                             ('emp', 'fix', '0447'),
-                            ('concepto', 'fix', '3'),
-                            ('partner id', '{:0>9d}', int(
+                            ('concepto', 'fix', self.default_concept),
+                            ('partner id', '{:0>8d}', int(
                                 transaction.partner_id.roela_ident)),
-                            ('vencimiento', 'AAAAMMDD', date_expiration),
-                            ('monto', '{:0>7d}', int(transaction.amount * 100)),
-                            ('dias 2', '{:0>2d}', expiration_days),
+                            ('vencimiento', 'AAMMDD', date_expiration),
+                            ('monto', '{:0>7d}', int(
+                                transaction.amount * 100)),
+                            ('dias 2', '{:0>2d}', days_2_expiration),
                             ('monto 2', '{:0>7d}', second_expiration),
-                            ('dias 3', '{:0>2d}', expiration_days),
+                            ('dias 3', '{:0>2d}', days_3_expiration),
                             ('monto 3', '{:0>7d}', third_expiration),
                             ('roela_code', '{:0>10d}', int(
                                 transaction.acquirer_id.roela_code)),
@@ -399,6 +411,8 @@ class SiroPaymentRequest(models.Model):
         for item in plot:
             if item[1] == 'fix':
                 res += item[2]
+            elif item[1] == 'AAMMDD':
+                res += item[2].strftime("%y%m%d")
             elif item[1] == 'AAAAMMDD':
                 res += item[2].strftime("%Y%m%d")
             elif item[1] == 'MMAA':

@@ -157,7 +157,7 @@ class PaymentAcquirer(models.Model):
             ('amount', 'int_to_float', 7, 10),
             ('userid', 'char', 8),
             ('concept', 'char', 1),
-            ('barcode', 'char', 59),
+            ('barcode', 'char', 56),
             ('chanel', 'char', 3),
             ('void_code', 'char', 3),
             ('void_text', 'char', 20),
