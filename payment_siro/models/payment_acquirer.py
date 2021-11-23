@@ -126,7 +126,7 @@ class PaymentAcquirer(models.Model):
                 ])
                 if transaction:
                     _logger.info('payment OK')
-                    transaction.amount = line_info['amount']
+                    transaction.amount = float(line_info['amount']) 
                     transaction._set_transaction_done()
                     transaction._reconcile_after_transaction_done()
                 else:
@@ -141,7 +141,7 @@ class PaymentAcquirer(models.Model):
             ('payment_date', 'AAAAMMDD', 8),
             ('acreditation_date', 'AAAAMMDD', 8),
             ('first_expiration_date', 'AAAAMMDD', 8),
-            ('amount', 'int_to_float', 7, 10),
+            ('amount', 'int_to_float', 7, 100),
             ('userid', 'char', 8),
             ('concept', 'char', 1),
             ('barcode', 'char', 56),
