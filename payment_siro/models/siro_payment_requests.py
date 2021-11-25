@@ -214,26 +214,7 @@ class SiroPaymentRequest(models.Model):
             ('pantalla', '{: <15}', re.sub(
                 r'[^a-zA-Z0-9 ]+', '', company_id.name.upper())[:15]),
 
-            ('codigo barra', 'get_vd', [
-                ('primer dv', 'get_vd',
-                    [
-                        ('emp', 'fix', '0447'),
-                        ('concepto', 'fix', self.default_concept),
-                        ('partner id', '{:0>8d}', int(
-                            transaction.partner_id.roela_ident)),
-                        ('vencimiento', 'AAMMDD', date_expiration),
-                        ('monto', '{:0>7d}', int(transaction.amount * 100)),
-                        ('dias 2', '{:0>2d}',
-                         invoice_id.company_id.days_2_expiration),
-                        ('monto 2', '{:0>7d}', second_expiration),
-                        ('dias 3', '{:0>2d}',
-                         invoice_id.company_id.days_3_expiration),
-                        ('monto 3', '{:0>7d}', third_expiration),
-                        ('roela_code', '{:0>10d}', int(
-                            transaction.acquirer_id.roela_code)),
-                    ]
-                 )
-            ]),
+            ('codigo barra', 'fix', transaction.siro_barcode),
             ('filler', 'fix', '    '),
             ('filler', '{:0>29d}', 0),
         ]
@@ -351,10 +332,6 @@ class SiroPaymentRequest(models.Model):
 
             third_expiration = second_expiration
 
-            plot = self.prepare_line_dict(transaction)
-
-            res += self.parce_text_line(plot)
-
             barcode = [('codigo barra', 'get_vd', [
                 ('primer dv', 'get_vd',
                         [
@@ -375,6 +352,8 @@ class SiroPaymentRequest(models.Model):
                         )
             ])]
             transaction.siro_barcode = self.parce_text_line(barcode)
+            plot = self.prepare_line_dict(transaction)
+            res += self.parce_text_line(plot)
             res += '\n'
 
         res += self.parce_text_line([

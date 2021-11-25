@@ -22,10 +22,9 @@
                     <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" icon="fa-download" name="list_process" type="object">
                         <div class="o_stat_info o_field_widget">
                             <span class="o_warning_text">
-                                <field name="roela_date_from"/>
+                                Descargar
                             </span>
                             <span class="o_stat_text">
-                                <field name="roela_date_to"/>
                             </span>
                         </div>
                     </button>
@@ -40,10 +39,15 @@
                         <field name="roela_code"/>
                     </group>
                     <group attrs="{'invisible': [('provider', '!=', 'siro')]}" string="SIRO Api">
+
                         <field name="siro_user"/>
                         <field name="siro_password" password="True"/>
                         <field attrs="{'readonly':True}" name="siro_token_expires"/>
                         <field attrs="{'readonly':True}" groups="base.group_no_one" name="siro_token"/>
+                        <field name="roela_date_from"/>
+
+                        <field name="roela_date_to"/>
+                        
                         <button attrs="{'invisible': [('provider', '!=', 'siro')]}" class="oe_stat_button" colsspan="2" icon="fa-key" name="siro_get_token" type="object">
                             <div class="o_stat_info o_field_widget">
                                 <span class="o_warning_text">Obtener</span>

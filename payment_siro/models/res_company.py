@@ -9,17 +9,18 @@ class ResCompany(models.Model):
         string='Roela Identification',
     )
     days_expiration = fields.Integer(
-        string='days to second expiration',
+        string='Dias para el 1 vencimiento',
         default=3
+
     )
 
     days_2_expiration = fields.Integer(
-        string='days to second expiration',
+        string='Dias para el 2 vencimiento',
         default=20
     )
 
     days_3_expiration = fields.Integer(
-        string='days to third expiration',
+        string='Dias para el 3 vencimiento',
         default=20
     )
     

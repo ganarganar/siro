@@ -113,25 +113,36 @@ class PaymentAcquirer(models.Model):
 
         if response.status_code == 200:
             _logger.info(response.content)
-            line_def = self.get_alternate_format_file()
+            line_def = self.get_siro_extended_format_file()
 
             res = response.json()
+
             for line in res:
                 line_info = self.parce_text_line(line, line_def)
-                transaction = self.env['payment.transaction'].search([
-                    ('state', 'not in', ['done', 'cancel']),
-                    ('acquirer_id.provider', '=', 'siro'),
-                    ('siro_barcode', '=', line_info['barcode'])
+                if not line_info['chanel'].startswith('B'):
+                    document_number = "%04d-%08d" % \
+                        (int(line_info['comp'][:7]),
+                         int(line_info['comp'][7:-5])
+                         )
+                    roela_ident = str(int(line_info['userid']))
+                    transaction = self.env['payment.transaction'].search([
+                        ('state', 'not in', ['done', 'cancel']),
+                        ('acquirer_id.provider', '=', 'siro'),
+                        ('partner_id.roela_ident', '=', roela_ident),
+                        ('invoice_ids.document_number', '=', document_number)
 
-                ])
-                if transaction:
-                    _logger.info('payment OK')
-                    transaction.amount = float(line_info['amount']) 
-                    transaction._set_transaction_done()
-                    transaction._reconcile_after_transaction_done()
-                else:
+                    ])
+                    if transaction:
+                        _logger.info('payment OK')
+                        _logger.info('%s Fue conciliado' % document_number)
+                        document_number
+                        transaction.amount = float(line_info['amount'])
+                        transaction._set_transaction_done()
+                        transaction._reconcile_after_transaction_done()
+                    else:
+                        _logger.info('%s no fue conciliado' % document_number)
 
-                    _logger.info('payment ko')
+                        _logger.error('payment ko')
         else:
             raise UserError(response.content)
 
@@ -154,10 +165,11 @@ class PaymentAcquirer(models.Model):
             ('payment_date', 'AAAAMMDD', 8),
             ('acreditation_date', 'AAAAMMDD', 8),
             ('first_expiration_date', 'AAAAMMDD', 8),
-            ('amount', 'int_to_float', 7, 10),
+            ('amount', 'int_to_float', 11, 100),
             ('userid', 'char', 8),
             ('concept', 'char', 1),
-            ('barcode', 'char', 56),
+            ('barcode', 'char', 59),
+            ('comp', 'char', 20),
             ('chanel', 'char', 3),
             ('void_code', 'char', 3),
             ('void_text', 'char', 20),
@@ -175,7 +187,7 @@ class PaymentAcquirer(models.Model):
                 res[item[0]] = fields.Date.to_string(
                     datetime.strptime(text, '%Y%m%d'))
             elif item[1] == 'int_to_float':
-                res[item[0]] = int(text) / item[3]
+                res[item[0]] = float(text) / float(item[3])
             elif item[1] == 'int':
                 res[item[0]] = int(text)
             else:
@@ -246,8 +258,8 @@ class PaymentAcquirer(models.Model):
         if self.siro_btn_token and fields.Datetime.from_string(self.siro_btn_token_expires) > datetime.now():
             return self.siro_btn_token
         else:
-            
-            api_url = self.get_auth_url() 
+
+            api_url = self.get_auth_url()
             _logger.info(api_url)
             request_data = {
                 "Usuario": self.siro_btn_user,
@@ -278,7 +290,7 @@ class PaymentAcquirer(models.Model):
             ('siro_requests_id', '=', False),
             ('acquirer_id', '=', self.id),
         ])
-        _logger.info(transaction_ids);
+        _logger.info(transaction_ids)
         if len(transaction_ids):
             requests = self.env['siro.payment.requests'].create(
                 {

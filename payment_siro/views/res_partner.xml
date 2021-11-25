@@ -8,6 +8,7 @@
                 <field name="inherit_id" ref="base.view_partner_form"/>
                 <field name="priority" eval="15"/>
                 <field name="arch" type="xml">
+                    
                     <button name="toggle_active" position="before">
                         <button type="object" class="oe_stat_button"
                                 icon="fa-credit-card"
